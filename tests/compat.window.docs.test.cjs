@@ -98,12 +98,10 @@ const LIVE_REGIONS = [
  * and so that a live claim cannot be smuggled in by hiding next to history.
  */
 const HISTORICAL_REGIONS = [
-	{
-		file: "README.md",
-		from: "**版本 10.6.1（2026-10-06）**",
-		to: "\n## ⚙️ 工作原理",
-		what: "the dated per-release notes (README's compat section carries both kinds)"
-	},
+	// README 的逐版本记录已整体迁到 docs/release-notes.md（原文未改），该文件在
+	// HISTORICAL_FILES 里登记为「整体历史」。README 现在只留当前版与上一版两条
+	// 说明，且都不含窗口上界，所以原先那条以「版本 10.6.1」起头的 region 已无起点，
+	// 留着它只会是一条永远找不到起点的死规则——删掉比修漂移的边界更诚实。
 	{
 		// Issue #95-E follow-up: the 10.9.x delivery notes recount (as dated
 		// history) how the desktop profile command shape was corrected, quoting
@@ -123,7 +121,14 @@ const HISTORICAL_REGIONS = [
  * the record rather than fixing a doc. Declared as a whole file so that no
  * region boundary has to be maintained as the file grows.
  */
-const HISTORICAL_FILES = new Set(["CHANGELOG.md"]);
+const HISTORICAL_FILES = new Set([
+	"CHANGELOG.md",
+	// README 的逐版本记录（10.23.0 → 9.9.0）整体迁到了这里，原文未改。
+	// 它和 CHANGELOG 是同一类东西：写下的那一刻是真的，改它就是篡改记录。
+	// 登记为「整体历史」而不是逐段 region，理由与该文件当初的注释一致：
+	// 文件只会继续变长，不该为它维护一条随增长而漂移的边界。
+	"docs/release-notes.md"
+]);
 
 const ALL_REGIONS = [...LIVE_REGIONS, ...HISTORICAL_REGIONS];
 
