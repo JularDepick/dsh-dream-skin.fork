@@ -288,6 +288,7 @@ grep -oE '"dsh-dream-skin:[a-z-]+"' lib/client.js | tr -d '"' | sort -u
 | `wallpaper-follows-skin` | `WALLPAPER_FOLLOWS_SKIN_KEY` | 壁纸是否跟随皮肤（`1` / `0`；所有 `0` 的写入点都是用户动作） |
 | `wallpaper-refresh` | `WALLPAPER_REFRESH_KEY` | 外链壁纸的刷新策略 |
 | `wallpaper-rotation` | `WALLPAPER_ROTATION_KEY` | 外链壁纸轮换（issue #61 的多链接观察）：JSON `{on, mode, minutes, urls, lastRotatedAt}`。**只增不改**：`wallpaper-url` 仍是“此刻在显示的那条”，列表单独存放，没有游标字段（位置 = 正在显示的那条在列表里的位置）；`urls` 每次读取都逐条过安全门，坏条目只丢它自己 |
+| `wallpaper-folder` | `WALLPAPER_FOLDER_KEY` | 本地壁纸文件夹的路径（单个字符串；空串不落盘——误触保护；读取时 `~` 展开到家目录、符号链接解析到真实路径） |
 | `wallpaper-history` | `WALLPAPER_HISTORY_KEY` | 最近用过的壁纸（JSON 数组，FIFO 淘汰 + 每键字节预算） |
 | `sidebar-opacity` | `SIDEBAR_OPACITY_KEY` | 侧栏透明度 |
 | `sidebar-link` | `SIDEBAR_LINK_KEY` | 侧栏与 dockkit 面板是否联动（`1` / `0`） |

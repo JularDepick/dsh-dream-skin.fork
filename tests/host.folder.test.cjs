@@ -59,6 +59,10 @@ async function fixture(t, { folder } = {}) {
 	for (const d of [home, photos, outside]) fs.mkdirSync(d);
 	const realHome = process.env.DSH_HOME;
 	const realHomeDir = process.env.HOME;
+	// Windows too: os.homedir() reads USERPROFILE there and ignores HOME, so a case
+	// that only sets HOME passes on Linux and fails on Windows with an undefined
+	// answer - the exact "green on the runner, red on the maintainer's machine" split.
+	const realUserProfile = process.env.USERPROFILE;
 	process.env.DSH_HOME = home;
 	let captured = null;
 	apply({ effect: (fn) => fn(), get: () => undefined, webServer: { register: (route) => { captured = route; return () => {}; } } });
@@ -72,6 +76,7 @@ async function fixture(t, { folder } = {}) {
 		server.closeAllConnections?.();
 		if (realHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = realHome;
 		if (realHomeDir === undefined) delete process.env.HOME; else process.env.HOME = realHomeDir;
+		if (realUserProfile === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = realUserProfile;
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 	/** One request with explicit headers (fetch will not let a test choose Host). */
@@ -142,7 +147,10 @@ test('folder list: unset, relative, missing and not-a-directory each answer a st
 
 test('folder: "~/" expands to the home directory and a symlinked folder is followed to its real path', async (t) => {
 	const f = await fixture(t);
+	// Both, because "home" means different variables per platform: POSIX reads HOME,
+	// Windows reads USERPROFILE. Setting one is a test that only runs on one OS.
 	process.env.HOME = f.root;
+	process.env.USERPROFILE = f.root;
 	fs.writeFileSync(path.join(f.photos, 'a.png'), png(1));
 	f.setFolder('~/photos');
 	assert.deepEqual((await f.list()).value.files.map((x) => x.name), ['a.png'], '~/photos resolves under HOME');
