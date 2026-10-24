@@ -390,7 +390,7 @@ function buildSandbox(overrides = {}) {
 	sandbox.window.__ModuleLoader__ = { load: (o) => { factory = o.factory; } };
 	sandbox.window.location = loc;
 	sandbox.window.history = sandbox.history;
-	for (const k of ['document', 'localStorage', 'btoa', 'atob']) sandbox.window[k] = sandbox[k];
+	for (const k of ['document', 'localStorage', 'btoa', 'atob', 'matchMedia']) sandbox.window[k] = sandbox[k];
 	const context = vm.createContext(sandbox);
 	// overrides.code lets a test patch the bundle source (e.g. pin the migration
 	// fingerprint constants to a synthetic fixture) without touching lib/client.js.
@@ -3529,6 +3529,80 @@ test('issue #100: the slider says so when the floor is holding it (marker wired,
 	}
 });
 
+test('issue #115: low-power floors the menu fill, so removing the frost cannot make menus MORE transparent', () => {
+	// The 10.21.1 switch cleared every backdrop-filter but left the menu fill at the
+	// skins' authored 0.46 / 0.58. A frosted pane reads as solid because the BLUR
+	// hides what is behind it; without the blur the same alpha is a plastic film you
+	// read the chat through — the switch labelled "reduce transparency" made menus
+	// more transparent than normal. The fix floors ONE channel (--dsw-menu-surface-fill)
+	// only while the switch is on, with the skin's own hue, and emits nothing when off.
+	const FLOOR = 0.92;
+	const MENU = 'rgba(39, 42, 48, 0.46)';
+	const alphaOf = (value) => Number(/,\s*([\d.]+)\)/.exec(String(value))[1]);
+	const rgbOf = (value) => {
+		const body = /^rgba?\(([^)]+)\)$/.exec(String(value).replace(/\s/g, ''));
+		assert.ok(body, `expected an rgb()/rgba() colour, got ${value}`);
+		return body[1].split(',').slice(0, 3).join(',');
+	};
+	const boot = (perf) => {
+		const attrs = new Map();
+		const styleProps = {};
+		const overrides = new Map();
+		const documentMock = {
+			body: { contains: () => false, prepend() {}, appendChild() {} },
+			head: { children: [], contains() { return false; }, appendChild() {}, append(c) { this.children.push(c); } },
+			createElement() { return { style: {}, dataset: {}, textContent: '', remove() {}, append() {} }; },
+			createTextNode: () => ({}),
+			querySelector: () => null,
+			querySelectorAll: () => [],
+			documentElement: {
+				style: { setProperty(k, v) { styleProps[k] = v; } },
+				setAttribute(k, v) { attrs.set(k, v); },
+				removeAttribute(k) { attrs.delete(k); }
+			}
+		};
+		const theme = {
+			setTheme() {},
+			getTheme() {
+				return { preference: 'abyss', active: { id: 'abyss', colorScheme: 'dark', tokens: {
+					'--dsw-alias-bg-base': '#0b0b0e',
+					'--dsw-alias-bg-layer-2': 'rgba(22, 22, 28, 0.85)',
+					'--dsw-menu-surface-fill': MENU
+				} }, themes: [], revision: 1 };
+			},
+			overrideTokens(source, tokens) { overrides.set(source, { ...tokens }); return () => {}; }
+		};
+		const seed = { 'dsh-dream-skin:modal-opacity': '0.4' };
+		if (perf) seed['dsh-dream-skin:performance'] = '1';
+		const h = buildSandbox({ document: documentMock, seed });
+		const e = h.factory(makeRequire(makeRuntime().RT));
+		e.apply({ ...makeApplyContext(h, { captureActions: true }), theme });
+		return { h, layer: () => overrides.get('dsh-dream-skin:appearance') || {}, bag: h.actionBags['dream-skin-glass'] };
+	};
+
+	const on = boot(true);
+	const menuOn = on.layer()['--dsw-menu-surface-fill'];
+	assert.ok(menuOn, 'low-power emits the menu-floor override');
+	assert.ok(alphaOf(menuOn.dark) >= FLOOR, `the dark menu must hold the floor, got ${alphaOf(menuOn.dark)}`);
+	assert.ok(alphaOf(menuOn.light) >= FLOOR, `the light menu must hold the floor, got ${alphaOf(menuOn.light)}`);
+	assert.equal(rgbOf(menuOn.dark), rgbOf(MENU), 'the skin\'s own menu hue is preserved (not repainted in the canvas colour)');
+	// The INACTIVE scheme's hue falls back to the built-in base exactly like layer-2
+	// does: the theme object only carries the active scheme's tokens. The floor (the
+	// part this fix owns) still applies to both, asserted above.
+
+	const off = boot(false);
+	assert.equal(off.layer()['--dsw-menu-surface-fill'], undefined,
+		'normal mode does not touch the menu channel at all — the authored glass stays');
+
+	// The override is keyed on the switch, so the toggle must both add and withdraw it.
+	off.bag.setPerformance(true);
+	assert.ok(off.layer()['--dsw-menu-surface-fill'], 'turning the switch on emits the floor without a reload');
+	assert.ok(alphaOf(off.layer()['--dsw-menu-surface-fill'].dark) >= FLOOR, 'and it is the same floor');
+	off.bag.setPerformance(false);
+	assert.equal(off.layer()['--dsw-menu-surface-fill'], undefined,
+		'turning it off withdraws the floor immediately (menus go back to the authored alpha)');
+});
+
 test('issue #103: mist seeds BELOW the floor on purpose, and both halves of that claim are pinned', () => {
 	// A deliberate deviation with no gate is a deviation waiting to be "fixed" by
 	// someone who cannot tell it was a decision (issue #95's whole complaint). mist
@@ -5803,6 +5877,118 @@ test('issue #61 (blur fill): the bleed layer paints BEHIND the image and detache
 	assert.equal(g.bleeds().length, 0, 'clearing the wallpaper tears the bleed layer down too');
 });
 
+// ── portrait wallpapers tile side by side under contain / blur ──────────────
+// A portrait photo on a landscape window left two wide empty bands in the
+// contain and blur modes. It now repeats horizontally at full height. The
+// orientation comes from an Image probe, so these cases settle the probe by hand.
+
+/** Image stub whose probes stay pending until the test loads them with a size. */
+function mkShapeImage(probes) {
+	return function () {
+		const self = this;
+		this.onload = null;
+		this.onerror = null;
+		this.naturalWidth = 0;
+		this.naturalHeight = 0;
+		let src = '';
+		Object.defineProperty(this, 'src', {
+			get: () => src,
+			set: (v) => {
+				src = v;
+				probes.push({ url: v, load: (w, h) => { self.naturalWidth = w; self.naturalHeight = h; if (self.onload) self.onload(); } });
+			}
+		});
+	};
+}
+const loadProbes = (probes, w, h) => { for (const p of probes.splice(0)) p.load(w, h); };
+
+function startShaped(seed) {
+	const g = mkWallpaperDoc();
+	const probes = [];
+	const h = buildSandbox({ document: g.doc, Image: mkShapeImage(probes), seed });
+	const e = h.factory(makeRequire(makeRuntime().RT));
+	e.apply(makeApplyContext(h, { captureActions: true }));
+	return { g, h, probes, adv: h.actionBags['dream-skin-wallpaper-advanced'] };
+}
+const TALL_SEED = {
+	'dsh-dream-skin:wallpaper-kind': 'url',
+	'dsh-dream-skin:wallpaper-url': 'https://cdn.example.com/tall.jpg',
+	'dsh-dream-skin:wallpaper-follows-skin': '0',
+	[FIT_KEY]: 'blur'
+};
+
+test('portrait tile: a portrait image repeats at full height under blur and contain, never under cover', () => {
+	const { g, probes, adv } = startShaped(TALL_SEED);
+	assert.equal(probes.length, 1, 'the blur render probes the image once');
+	assert.equal(g.main().style.backgroundImage, `url("${probes[0].url}")`, 'the probe loads the exact URL the layer renders');
+	assert.equal(g.main().style.backgroundSize, 'contain', 'until the probe answers, the old contain look stays');
+	assert.equal(g.bleeds().length, 1, 'and so does the bleed');
+
+	loadProbes(probes, 600, 1200);
+	assert.equal(g.main().style.backgroundSize, 'auto 100%', 'portrait: each copy is full height');
+	assert.equal(g.main().style.backgroundRepeat, 'repeat-x', 'portrait: copies sit side by side');
+	assert.equal(g.bleeds().length, 0, 'the tiles fill the window, so the bleed layer goes');
+
+	adv.setFit('cover');
+	assert.equal(g.main().style.backgroundSize, 'cover', 'cover keeps its single cropped copy');
+	assert.equal(g.main().style.backgroundRepeat, 'no-repeat', 'cover does not tile');
+
+	adv.setFit('contain');
+	assert.equal(probes.length, 0, 'the same image is not probed again');
+	assert.equal(g.main().style.backgroundSize, 'auto 100%', 'contain tiles the portrait image too');
+	assert.equal(g.main().style.backgroundRepeat, 'repeat-x');
+
+	adv.setUrl('https://cdn.example.com/wide.jpg');
+	assert.equal(g.main().style.backgroundRepeat, 'no-repeat', 'a new image starts untiled, not with the previous repeat');
+	assert.equal(g.main().style.backgroundSize, 'contain');
+	loadProbes(probes, 1600, 900);
+	assert.equal(g.main().style.backgroundSize, 'contain', 'a landscape image keeps contain');
+	assert.equal(g.main().style.backgroundRepeat, 'no-repeat', 'a landscape image does not tile');
+});
+
+test('portrait tile: a late probe answer for a replaced or unloaded wallpaper changes nothing', () => {
+	const { g, h, probes, adv } = startShaped(TALL_SEED);
+	const tallProbe = probes.splice(0)[0];
+	adv.setUrl('https://cdn.example.com/wide.jpg');
+	const wideProbes = probes.length;
+	tallProbe.load(600, 1200);
+	assert.equal(g.main().style.backgroundRepeat, 'no-repeat', 'the old image\'s portrait answer does not tile the new one');
+	assert.equal(g.main().style.backgroundSize, 'contain');
+	assert.equal(probes.length, wideProbes, 'nor does it discard the new image\'s pending probe and start another');
+	probes.splice(0);
+
+	adv.setUrl('https://cdn.example.com/tall-2.jpg');
+	const pending = probes.splice(0);
+	assert.ok(pending.length > 0, 'the new image is probed');
+	for (const d of h.disposers || []) d();
+	const live = () => g.created.filter((el) => !el.removed && g.doc.body.children.includes(el) && el.style.backgroundImage);
+	assert.equal(live().length, 0, 'unloading the plugin removes the wallpaper layer');
+	for (const p of pending) p.load(600, 1200);
+	assert.equal(live().length, 0, 'a probe that lands after unload does not bring a wallpaper layer back');
+});
+
+test('portrait tile: a probe that settles synchronously tiles on the same render', () => {
+	const g = mkWallpaperDoc();
+	const Image = function () {
+		this.naturalWidth = 600;
+		this.naturalHeight = 1200;
+		Object.defineProperty(this, 'src', { set: () => { if (this.onload) this.onload(); } });
+	};
+	const h = buildSandbox({ document: g.doc, Image, seed: TALL_SEED });
+	h.factory(makeRequire(makeRuntime().RT)).apply(makeApplyContext(h, { captureActions: true }));
+	assert.equal(g.main().style.backgroundRepeat, 'repeat-x', 'the answer is used although the re-render was swallowed by the re-entry guard');
+});
+
+test('portrait tile: a gradient wallpaper is never probed', () => {
+	const { probes } = startShaped({
+		'dsh-dream-skin:wallpaper-kind': 'gradient',
+		'dsh-dream-skin:wallpaper-gradient': 'linear-gradient(168deg, #faeeef 0%, #f5e8e9 100%)',
+		'dsh-dream-skin:wallpaper-follows-skin': '0',
+		[FIT_KEY]: 'blur'
+	});
+	assert.equal(probes.length, 0, 'a gradient has no orientation to probe');
+});
+
 test('issue #110: low-power mode drops backdrop-filter, the wallpaper blur and the bleed layer', () => {
 	// The bundle ships no CSS animations, so the measured GPU cost is compositing
 	// large blurred surfaces (#110: >50% idle on an M4 with two windows open).
@@ -5867,6 +6053,152 @@ test('issue #110: low-power mode drops backdrop-filter, the wallpaper blur and t
 	assert.equal(restored.find((el) => el.style.filter === 'blur(7px)') !== undefined, true,
 		'and the user blur comes back');
 });
+
+test('issue #110 follow-up: automatic low-power follows the OS, and a pinned choice outranks it', () => {
+	// #110's own A/B on the M4 measured 23% idle GPU with the frost on and 11% with it
+	// off, so the flat render is the cheaper one — and the people who already told the
+	// OS "less transparency" are the same people. Hence three states: an ABSENT key is
+	// automatic (resolve from the OS), "1"/"0" are pinned by the user and win.
+	// Honest boundary of this harness: it asserts the ATTRIBUTE, the rendered layers and
+	// the STORE FIELDS the row reads — the React component itself is never rendered here
+	// (slots.register ignores the component), so "the row shows 交还给自动" is not proven
+	// by this file; that it is not mouse-only is proven by the `button` tag, not by a gate.
+	const ATTR = 'data-dsh-dream-skin-performance';
+	const SEED = {
+		'dsh-dream-skin:wallpaper': 'data:image/png;base64,AAAA',
+		'dsh-dream-skin:wallpaper-blur': '7',
+		'dsh-dream-skin:wallpaper-fit': 'blur'
+	};
+	const mqlOf = (matches) => {
+		const listeners = [];
+		return {
+			media: '(prefers-reduced-transparency: reduce)', matches, listeners,
+			addEventListener(type, fn) { if (type === 'change') listeners.push(fn); },
+			removeEventListener(type, fn) { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); },
+			set(next) { this.matches = next; for (const fn of listeners.slice()) fn(this); }
+		};
+	};
+	const painted = (h) => h.document.body.children.filter(
+		(el) => typeof el.style.backgroundImage === 'string' && el.style.backgroundImage !== ''
+	);
+	const start = (osReduce, seed = {}) => {
+		const mql = mqlOf(osReduce);
+		const h = buildSandbox({ seed: { ...SEED, ...seed }, matchMedia: () => mql });
+		const e = h.factory(makeRequire(makeRuntime().RT));
+		e.apply(makeApplyContext(h, { captureActions: true }));
+		return { h, mql, glass: h.actionBags['dream-skin-glass'], row: h.storeStates['dream-skin-glass'] };
+	};
+
+	// 1. Automatic + OS says reduce → low-power from the first frame, no user action.
+	const auto = start(true);
+	assert.equal(auto.h.document.documentElement.getAttribute(ATTR), '1',
+		'a machine whose OS asked for less transparency gets the flat render without finding the switch');
+	assert.equal(painted(auto.h).length, 1, 'the bleed layer is not created');
+	assert.equal(painted(auto.h)[0].style.filter, 'none', 'the wallpaper is not blurred');
+	assert.equal(auto.row.performance, true, 'the row reads the RESOLVED state');
+	assert.equal(auto.row.performanceAuto, true, 'and knows the user never pinned anything');
+
+	// 2. Automatic + OS has no preference → the shipped look, bit for bit (control).
+	const plain = start(false);
+	assert.equal(plain.h.document.documentElement.getAttribute(ATTR), null,
+		'no OS preference means automatic resolves to the glass look');
+	assert.equal(painted(plain.h).length, 2, 'control: bleed + image');
+	assert.equal(plain.row.performance, false, 'the row is unchecked');
+	assert.equal(plain.row.performanceAuto, true, 'but still automatic');
+
+	// 3. Pinned OFF on a machine that reports reduce → the user wins, both halves.
+	const off = start(true, { 'dsh-dream-skin:performance': '0' });
+	assert.equal(off.h.document.documentElement.getAttribute(ATTR), null,
+		'an explicit 0 outranks the OS — the whole point of pinning');
+	assert.equal(painted(off.h).length, 2, 'and the wallpaper half agrees with the CSS half');
+	assert.equal(off.row.performance, false);
+	assert.equal(off.row.performanceAuto, false, 'the row must now offer to hand the choice back');
+
+	// 4. Pinned ON with no OS preference → also wins.
+	const on = start(false, { 'dsh-dream-skin:performance': '1' });
+	assert.equal(on.h.document.documentElement.getAttribute(ATTR), '1');
+	assert.equal(on.row.performance, true);
+
+	// 5. The OS changes while the choice is automatic → re-render live, not on reload.
+	const live = start(false);
+	assert.equal(live.h.document.documentElement.getAttribute(ATTR), null, 'before');
+	live.mql.set(true);
+	assert.equal(live.h.document.documentElement.getAttribute(ATTR), '1',
+		'an OS flip while automatic repaints the CSS switch');
+	assert.equal(painted(live.h).length, 1, '…the wallpaper (the blur and the bleed layer)…');
+	assert.equal(live.row.performance, true, '…and the row, so the checkbox does not lie');
+	assert.equal(live.h.localStorage.getItem('dsh-dream-skin:performance'), null,
+		'following the OS writes nothing: the key stays absent so the state remains automatic');
+
+	// 6. …but once the user pins it, an OS flip must not revoke that decision.
+	live.glass.setPerformance(false);
+	assert.equal(live.h.localStorage.getItem('dsh-dream-skin:performance'), '0', 'pinned off');
+	const pinnedRevision = live.row.revision;
+	live.mql.set(false);
+	live.mql.set(true);
+	assert.equal(live.h.document.documentElement.getAttribute(ATTR), null,
+		'a pinned choice survives the OS changing under it (#110 must not become a surprise)');
+	assert.equal(live.row.revision, pinnedRevision,
+		'and the page is not even re-rendered: readPerformanceMode is the single source, so a '
+		+ 'pinned decision means an OS flip costs this window nothing — no repaint, no flash');
+
+	// 7. Handing it back is reachable, and "back to automatic" is absence, not a new value.
+	live.glass.setPerformanceAuto();
+	assert.equal(live.h.localStorage.getItem('dsh-dream-skin:performance'), null,
+		'the reset drops the key rather than inventing a third sentinel value');
+	assert.equal(live.h.document.documentElement.getAttribute(ATTR), '1',
+		'so the live OS preference resolves immediately, without a reload');
+	assert.equal(live.row.performanceAuto, true, 'and the row goes back to showing the automatic hint');
+
+	// 8. A DOM without the media feature at all keeps the shipped look (the guard, not a throw).
+	const noFeature = buildSandbox({ seed: { ...SEED } });
+	const eNo = noFeature.factory(makeRequire(makeRuntime().RT));
+	assert.doesNotThrow(() => eNo.apply(makeApplyContext(noFeature, { captureActions: true })),
+		'an engine with no matchMedia must not break the mount');
+	assert.equal(noFeature.document.documentElement.getAttribute(ATTR), null,
+		'and automatic resolves to the shipped look there');
+});
+
+test('issue #110 follow-up: the reduce-transparency listener belongs to the fiber that armed it', () => {
+	// The listener re-renders the wallpaper and the token layer, so a retired
+	// generation holding one is not harmless: it can repaint the live page through
+	// stale closures. It is therefore armed inside apply() and disposed by that
+	// fiber's own effect — the same identity discipline as the nav hook and the
+	// wash-flip hook. Two generations in ONE context, opposite expectations.
+	const ATTR = 'data-dsh-dream-skin-performance';
+	const mql = mqlOfRecording();
+	const h = buildSandbox({
+		seed: { 'dsh-dream-skin:wallpaper': 'data:image/png;base64,AAAA' },
+		matchMedia: () => mql
+	});
+	const e = h.factory(makeRequire(makeRuntime().RT));
+	const ctxA = makeApplyContext(h);
+	e.apply(ctxA);
+	const afterFirst = (h.disposers || []).length;
+	const ctxB = makeApplyContext(h);
+	e.apply(ctxB);
+	assert.equal(mql.listeners.length, 2, 'two live fibers armed two listeners');
+
+	// The STALE fiber unloads: the live one must keep working.
+	for (const d of (h.disposers || []).slice(0, afterFirst)) d();
+	assert.equal(mql.listeners.length, 1, 'a stale dispose removes only its own listener');
+	mql.set(true);
+	assert.equal(h.document.documentElement.getAttribute(ATTR), '1',
+		'the surviving listener still follows the OS — the retired fiber did not disarm it');
+
+	for (const d of (h.disposers || []).slice(afterFirst)) d();
+	assert.equal(mql.listeners.length, 0, 'and the live unload leaves no listener behind');
+});
+
+function mqlOfRecording() {
+	const listeners = [];
+	return {
+		media: '(prefers-reduced-transparency: reduce)', matches: false, listeners,
+		addEventListener(type, fn) { if (type === 'change') listeners.push(fn); },
+		removeEventListener(type, fn) { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); },
+		set(next) { this.matches = next; for (const fn of listeners.slice()) fn(this); }
+	};
+}
 
 test('issue #61 (fill mode): a gradient ignores it, and both gates whitelist the value', () => {
 	// A gradient has no intrinsic aspect ratio, so `fit` must not change how it

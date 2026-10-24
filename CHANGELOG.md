@@ -2,6 +2,78 @@
 
 记录 `dsh-dream-skin` 的可观变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。从 `8.28.0` 起，版本号启用**日期式规则**：`M.D.X`（月.日.当日第几个版本），例如 8 月 28 日首个版本 `8.28.0`，当日再发 `8.28.1`，次日则为 `8.29.0`，以取代旧的 `0.4.x` 语义化版本（日期按维护者本地时区 UTC+8 计）。
 
+## [10.23.0] - 2026-10-23
+
+> **#110 的 A/B 读数回来了：同一台 M4，空闲 GPU 从 23% 掉到 11%。按 10.21.1 里写下的承诺，低功耗不再等人去找开关——它默认跟随系统的「减少透明度」。** 质量审计：**229 项质量门全过**（217 调色 + 12 工艺，两池都不碰），全套 `npm test` 569→**571 全绿**。
+
+### 一、读数说明了什么（报告人 @HelloQingTao，同机同分辨率同两窗口，插件 10.22.0）
+
+| 状态 | 空闲 | 快速滚动 |
+| --- | --- | --- |
+| 停用插件 | 0% | 40–45% |
+| 默认（玻璃开） | 23% | 75–80% |
+| 低功耗 | 11% | 60–65% |
+
+- **模糊是最大单项成本**：空闲 23% → 11%（−52%），滚动 −15 点。10.21.1 把方向押在合成上是对的。
+- **剩下的 11% 不是模糊**：插件停用时空闲是 0%，所以那 11 点来自壁纸层自身（全屏合成层 + 遮罩），与 `backdrop-filter` 无关。再往下压需要一份 F12 → Performance 的录制；本版不靠一个百分比去改壁纸层结构。
+- **滚动的宿主基线是 40–45%**：插件负责的是那 +15~35 点，不是全部。这条也是原报告「两窗口同开就卡死」归因的一部分。
+
+### 二、改了什么
+
+- `dsh-dream-skin:performance` 由两态变**三态**：`1` = 固定开、`0` = 固定关、**缺键 = 自动**，自动解析自 `prefers-reduced-transparency: reduce`（Chromium 118 起的媒体特性；macOS 来源是 系统设置 → 辅助功能 → 显示 → 减少透明度）。
+- 「交还给自动」= **删掉这枚键**，不是写第三个哨兵值：`FACTORY_DEFAULTS` 不动、`SENTINEL_KEYS` 不动、旧构建与共享同一 `DSH_HOME` 的邻居读法不变（这是 10.14.0 那条「形状必须还是扁平字符串映射」的纪律）。
+- 系统偏好可在页面开着时改变 ⇒ 订阅它的 `change` 事件。**监听器声明在 `apply()` 的 fiber 作用域、由该 fiber 的 `ctx.effect` 释放**，不放模块作用域：退休的一代不能拿着活的一代的闭包重绘（与 nav hook、wash-flip hook 同一条身份纪律）。
+- 一次翻转同时重发 CSS 开关 / 菜单底色通道 / 壁纸层 / 设置行，抽成 `rerenderLowPower()`——10.21.1 的 #115 就是「只动了一半」的现例。
+- **固定住的选择不重绘**：`isPerformanceExplicit()` 时系统翻转什么也不做（连 store revision 都不推进），否则用户每动一次辅助功能设置，页面闪一下。
+- `restorePersistedState()` 里补一次 `applyPerformanceMode()`：桌面壳可能 localStorage 为空而宿主文件已写着 `0`，boot 解析出的「自动」必须在宿主状态落地后被纠正，且要早于 `applyWallpaper2()`——否则 CSS 半边与 JS 半边差一帧。
+- 设置行加两枚文案（8 语言）：`glass.performanceAuto`（自动中的提示）、`glass.performanceAutoReset`（交还给自动，真 `button`，键盘可达）。
+
+### 三、门与账本
+
+- 新增 **2 条用例**（`tests/client.smoke.test.cjs`）：① 三态解析（自动+系统开 ⇒ 首帧即平涂、自动+系统关 ⇒ 外观一字不变、固定 `0`+系统开 ⇒ 用户赢、固定 `1`+系统关 ⇒ 用户赢、系统中途翻转 ⇒ CSS/壁纸/设置行同帧跟上且不写键、固定后翻转 ⇒ 连 revision 都不动、交还给自动 ⇒ 键被删且立刻按系统解析、无 `matchMedia` 的 DOM ⇒ 不抛错且保持出厂外观）；② 监听器归属（两个 fiber 各挂各的、stale dispose 只撤自己的、live unload 不留遗留）。夹具补 `matchMedia` 到 `window` 的镜像。
+- **10 次反向破坏：8 次各自点名翻红**（删 OS 回退 / 从不挂监听 / 删释放 effect / 少重绘壁纸 / 少同步行 / 复位写成 `0` / 删固定选择守卫 / `syncGlass` 不再报是否固定）。
+- **2 次故意留绿，写在这里而不是假装覆盖**：① 把 store 的 `performanceAuto` init 改成恒 `true` 不翻红——第一次 sync 一定覆盖它，行渲染不到那么早；这一维真正的决策在 sync，已由上一条破坏覆盖。② 删掉 `restorePersistedState()` 里那次 `applyPerformanceMode()` 不翻红——fixture 在求值前就把 localStorage 灌满，boot 与 restore 的解析值必然相同，这条防线在单元测试里不可见（它服务的是桌面壳那条路径，见下「未验证」）。
+- 套件 **569→571**；`docs/desktop-support.md` 的兼容表、已验证清单与 `performance` 键语义行同步；README 当前版本块同步。
+- **发布后追加（不改发货产物，故未重发）**：第三方目录的收录扫描（`hashgraph-online/awesome-ai-plugins#947` 的 HOL AI Plugin Scanner，来源 commit `b5d4dee`，score 70/80）报了三类，处置分两种：
+  - **照做**：`.github/workflows/*` 的 12 处 `uses: actions/*@v4` 全部改成不可变 commit SHA（`actions/checkout@11d5960… # v4.4.0`、`actions/setup-node@49933ea… # v4.4.0`）。两枚 SHA 都从 GitHub 的 tag ref 现读并核对 `object.type=commit`，而且**正是 `@v4` 当天解析到的那两个 commit**——所以这是加锁，不是升级；新增 `.github/dependabot.yml`，只盯 `github-actions`：本仓库零运行时依赖、CI 连 `npm install` 都不跑，唯一执行的外部代码就是这些 action 与 `npx -p typescript@5.6.3`（后者本来就写死了确切版本）。
+  - **不照做，并留下证据**：4 处 `HARDCODED_SECRET` 与 3 处 `DANGEROUS_DYNAMIC_EXECUTION` 逐条看过，全是误报——所谓 secret 是 **CSS token 的名字**（`--dsw-alias-bg-base`、`dangerToken = "--dsw-alias-interactive-bg-hover-danger"`、`footToken: 'AAAA_footArea'`、`token: '_fade'`），所谓 dynamic execution 是我们测试自己的 `node:vm` 沙箱（`vm.runInContext`）。这类分数我们不追：为了让扫描器闭嘴而把 CSS 变量改名，代价是让审计面更难读，正是 #1411 那轮谈过一次的那句话——**外部判据逼你改形状时，先量这形状是谁定的、为什么定**。
+  - **续**：按对方 `SCANNER_GUIDE.md` 把源仓库侧扫描也接上了（`.github/workflows/plugin-scan.yml`，`push` 与 `pull_request` 都跑；`contents: read` + 无 secrets + `persist-credentials: false` + 两个 action 都钉 commit；扫描器钉在指南文档的 `v1.2.635`）。第一次读数 **82/100 (B - Good)**，`min_score: 80` 判定 success（run `39967454320`，源 commit `118d2e1`）——即「12 处 action 加锁 + dependabot」这两项就把 70 推过了门槛。仍扣分的是上面那两组误报；本仓库 CI 因此用 `fail_on_severity: none`，与目录"severity 是上下文、分数才是门"的口径一致。
+
+### 四、诚实边界
+
+- **壳会不会转发系统偏好，未验证。** DevTools 的 `Rendering → Emulate prefers-reduced-transparency` 只证明**接线**正确，不证明 macOS 的「减少透明度」能穿过 Electron 到达页面层。已请报告人在 M4 上读 `matchMedia('(prefers-reduced-transparency: reduce)').matches` 的开 / 关各一次。若两次都是 `false`，「自动」这一维就仍是关（外观不变、不写键、不报错），方案改成别的判据而不是让它悄悄失效。
+- **发版后本机补到的一条读数（方向确认了一半，`issuecomment-6364794316`）**：真实引擎里连续两样本 `matchMedia('(prefers-reduced-transparency: reduce)').matches = true`、`(…no-preference) = false`，而同机注册表 `HKCU\…\Themes\Personalize\EnableTransparency = 0x0`（系统设置的「透明效果」= 关）——两边一致，所以这一媒体特性**不是恒真的桩**，且是按特性分别转发的（同页 `prefers-reduced-motion` 为 `false`）。**仍未量的**：① 那是 Qoder 的 Electron 43 / Chromium 150 壳，不是 DSH 桌面壳；② 只量到「系统关 ⇒ reduce」这一边，「系统开 ⇒ no-preference」要改本机系统设置才能验，没擅自改。这条读数只进了仓库与本 CHANGELOG：**`CHANGELOG.md` 不在 npm `files` 白名单里，README 的 npm 副本也仍是发版那一刻的文字**——它说的话没有过错，只是比仓库少这一条；随下一版带上。
+- **本版没有降低任何人的默认外观**：系统未开「减少透明度」时，自动解析为关；10.21.1 之前装的用户从不写这枚键，所以他们的页面与今天逐像素相同。
+- **余量变小了**：`lib/client.js` 478,503 → 485,394 B（+6,891 B）。480 KiB 天花板未动，余量 13,017 → **6,126 B**。这是 #118 那条「把天花板抬到 576 KiB」讨论里必须一起算进来的数——本仓库的天花板是在 `AI-Scarlett/DSH-Store#1411` 里对外声明过的预算。
+- 壁纸层自身那 11% 空闲成本仍在本版读数里，未处理，需要 Performance 录制才能继续归因。
+
+## [10.22.0] - 2026-10-22
+
+> **低功耗模式把菜单变成了「保鲜膜」——本版给菜单底色加下限，让「降低透明度」真的降透明（#115 / #116，@aurora-zl）。** 质量审计：**229 项质量门全过**（217 调色 + 12 工艺，两池都不碰），全套 `npm test` 568→**569 全绿**。
+
+### 一、10.21.1 错在哪
+
+低功耗模式用 `!important` 清掉了全站 `backdrop-filter`，但**没有动菜单底色的 alpha**。菜单本来就是一块磨砂玻璃：皮肤把 `--dsw-menu-surface-fill` 写成 0.46（浅色 0.58），可读性由**模糊**承担，46% 只负责染色。磨砂一没，同一块 46% 就变成一层能直接读穿背后聊天的保鲜膜——开关名叫「降低透明度」，实际做的是「去掉模糊」，结果是**更透明**。这是我在 10.21.1 写出来的缺陷，@aurora-zl 在 #115 里把成因拆得很清楚。
+
+### 二、改了什么（#116）
+
+- 新增 `MENU_LOWPOWER_FLOOR = 0.92`，与既有弹窗可读性下限同一量级。
+- **只在低功耗开着时**给 `--dsw-menu-surface-fill` 发一条覆盖：`max(滑杆, 0.92)`；开关关着一行都不发，八套皮肤原本的磨砂玻璃原样保留。
+- `fillFor()` 认识这枚 token，覆盖时**保留皮肤自己的菜单色相**（暗色 `39,42,48`），而不是掉成画布色；未激活配色方案仍按既有规则回落到内置底色（与 layer-2 同一条路）。
+- `setPerformance()` 里补一次 `applyModalOverlay(ctx)`：拨开关当帧重发覆盖，关掉后下限不会残留到下一次刷新。
+
+### 三、门与账本
+
+- 新增 **1 条用例**（`tests/client.smoke.test.cjs`）：低功耗开时两个配色方案都 ≥0.92、激活方案色相与皮肤 token 一致；关时该通道**完全不被覆盖**；拨开关能当帧加上、当帧撤掉。
+- **1 次反向破坏**：把覆盖门控改成 `if (false)` ⇒ 该用例红；恢复后 157/157 绿。
+- 套件 **568→569**；`docs/desktop-support.md` 与 README 当前版本块同步。
+
+### 四、诚实边界
+
+- 本版只给**菜单**这一条通道加了下限；低功耗打开时 composer / 侧栏等其他玻璃面仍会失去模糊、保留各自的半透明填充。若后续回执指出同类问题，应逐通道加下限，而不是再整体调一次 alpha。
+- 判据是**计算值**（token 覆盖后的 alpha 与色相），不是真机目视；#115 报告人的肉眼回执是本轮唯一的观感证据。
+- 未激活配色方案的色相来自内置底色，这是与 layer-2 一致的既有行为；只在「切换配色后没有重建覆盖」的窗口里可见。
+
 ## [10.21.2] - 2026-10-21
 
 > **壁纸轮换（#113，@lisihao）：一次最多 20 条图片链接，按 5 分钟到 7 天的间隔顺序或随机切换。** 质量审计：**229 项质量门全过**（217 调色 + 12 工艺，两池都不碰），全套 `npm test` 550→**568 全绿**。

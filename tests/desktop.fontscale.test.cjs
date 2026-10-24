@@ -115,7 +115,11 @@ const DATE_RE = /采样日期 (\d{4}-\d{2}-\d{2})/;
 const SAMPLES_FILE = "scripts/data/font-extreme-samples.json";
 
 /** A doc that states the host range obliges the disclaimer. */
-const RANGE_MENTION = /10[-]22|10 (?:to|through) 22/;
+// The host range is written with an EN DASH ("10–22 px"); the ASCII form is only
+// matched when it is NOT part of a date. 10.22.0's release heading is "2026-10-22",
+// and the naive /10[-]22/ read that date as a font-range claim — a gate false
+// positive that reddened every claim doc carrying the new version block.
+const RANGE_MENTION = /(?<![\d-])10[-]22(?![\d-])|10 (?:to|through) 22/;
 
 /** The disclaimer may also be spelled in English. */
 const DISCLAIMER_ALT = /extremes are (?:unsampled|not sampled|untested)/;

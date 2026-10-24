@@ -1,0 +1,36 @@
+name: Plugin Security Scan
+
+# Why this workflow exists: the awesome-ai-plugins listing (hashgraph-online/awesome-ai-plugins#947)
+# requires a completed centralized scan >= 80, and says projects that run the scanner
+# themselves "receive the full trust score" while projects without it take a 10% reduction.
+# So the scan runs here too — visible, reproducible, on every push and PR.
+#
+# Supply-chain shape, deliberately the guide's own contract (SCANNER_GUIDE.md):
+# `contents: read` only, no secrets, checkout credentials not persisted, SARIF upload and
+# online probing off unless asked for, and BOTH actions pinned to immutable commits.
+# The scanner pin is the commit the guide documents (v1.2.635); a newer release (v1.2.801)
+# exists, and moving to it belongs in its own change with a before/after score, not here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: HOL Plugin Scanner
+        uses: hashgraph-online/ai-plugin-scanner-action@caba2e96aa8ad2feb6cf6fca52442b52e22e779f # v1.2.635
+        with:
+          plugin_dir: "."
+          # `none` keeps severity advisory, exactly as the catalog treats it: the score
+          # is the gate, a rule's severity is context for the reviewer.
+          fail_on_severity: none
+          min_score: 80

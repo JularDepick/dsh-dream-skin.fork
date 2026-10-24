@@ -1,0 +1,15 @@
+---
+# The shipped package has zero runtime dependencies (`npm ci` never runs, and CI
+# installs nothing), so the only third-party code this repository executes lives in
+# `.github/workflows` — the pinned `actions/*` commits — and in the `npx -p typescript@…`
+# fetch inside the typecheck job. Dependabot therefore watches the actions, not npm.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # The pinned SHAs are the same releases `@v4` was resolving to, so this is
+    # immutability, not an upgrade — but a v5 PR would still arrive here, and a
+    # stack of them buries the one PR that matters. Cap it instead.
+    max-open-pull-requests: 3
