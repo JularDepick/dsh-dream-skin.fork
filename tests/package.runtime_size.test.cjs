@@ -44,7 +44,11 @@ const BUDGETS = [
 	// 480 -> 512 KiB on purpose: wallpaper rotation took the bundle from 449 KB to 476 KB, and its
 	// local-folder source (the settings controls, the host listing client and 12 strings in each of
 	// the 8 dictionaries) to 498 KB. The file stays unminified: it is the audit surface.
-	{ rel: 'lib/client.js', ceiling: 512 * 1024, reason: 'browser half; one combo-served file by host design' },
+	// 512 -> 544 KiB on purpose: wallpaper framing (three sliders, the clamped integer keys, the
+	// style-only repaint path and 5 strings in each of the 8 dictionaries) took it from 498 KB to
+	// 511 KB — 1 KB under the old line, i.e. the next one-line change would have been the "pass"
+	// nobody decided. The headroom is deliberate, not an achieved ceiling.
+	{ rel: 'lib/client.js', ceiling: 544 * 1024, reason: 'browser half; one combo-served file by host design' },
 	{ rel: 'lib/index.js', ceiling: 40 * 1024, reason: 'host half' }
 ];
 
