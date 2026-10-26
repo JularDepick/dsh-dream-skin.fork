@@ -100,7 +100,10 @@ function buildSandbox({ failWrite = null, seed = {}, code = null } = {}) {
 	};
 }
 
-const REACT = { useRef: () => ({ current: {} }), useMemo: (f) => (typeof f === 'function' ? f() : f), useState: (init) => [init, () => {}] };
+// `useEffect` is here because the settings rows subscribe to a media query (the responsive
+// tiers): a component this sandbox actually renders must be handed the same React surface the
+// browser does, or the render throws instead of the case failing on a fact.
+const REACT = { useRef: () => ({ current: {} }), useMemo: (f) => (typeof f === 'function' ? f() : f), useState: (init) => [init, () => {}], useEffect: () => {} };
 const RT = { defineStore: (d) => ({ spec: d, create() {} }) };
 
 /**
