@@ -51,8 +51,8 @@ GitHub 上 [Fei-Away/Codex-Dream-Skin](https://github.com/Fei-Away/Codex-Dream-S
 - 叠加层：`ctx.theme.overrideTokens(source, { '--token': { light, dark } })`，override 层要求**`{ light, dark }` 成对**
   字符串（与注册主题的标量 token 不同）。正式动态插件运行器会把同一 package 的 source 归一成一个来源，
   所以 accent、壁纸着色与弹窗透明度必须先在插件内合并，再提交为单个 appearance 覆盖层。
-- 设置插槽：注册独立分节 `ctx.slots.inject('settings.section', ...)`（「Theme / 外观」），5 个功能行挂
-  `settings.dreamSkin.item` 插槽下。
+- 设置插槽：注册独立分节 `ctx.slots.inject('settings.section', ...)`（「Theme / 外观」），四个区（主题与配色 /
+  玻璃效果 / 背景与壁纸 / 导入与导出）的行挂 `settings.dreamSkin.item` 插槽下。
 - 持久化边界：浏览器第三方只能用 `localStorage`（DSH `WEB_SETTINGS_NAMESPACES` 是硬编码白名单，第三方 namespace
   即使注册也答 `settings-not-exposed`）。
 - 分享链接：主题包 base64 编码进 URL hash（`#dream-skin-pack=`），打开页面时自动导入。
