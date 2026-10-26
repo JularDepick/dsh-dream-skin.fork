@@ -1276,11 +1276,15 @@ test('all locale dictionaries are complete and keep placeholders', () => {
 	// hold is (a) all eight dictionaries are identical, (b) every key the code looks up
 	// exists, and (c) every key that exists is reachable — either literally, or through
 	// one of the two dynamic families below (skin.<id> / material.<id>[.desc]).
-	const literalUses = new Set([...src.matchAll(/\b(?:t|localeT)\(\s*"([a-zA-Z0-9.]+)"/g)].map((m) => m[1]));
+	// A call can also build its key from a literal PREFIX plus a value (W7a's material
+	// chips do: t("material." + preset.id)), and the prefix alone is not a key. Trailing
+	// dots are dropped here and the finished keys are covered by DYNAMIC_FAMILIES below —
+	// otherwise every derived lookup would be reported as "code looks up 'material.'".
+	const literalUses = new Set([...src.matchAll(/\b(?:t|localeT)\(\s*"([a-zA-Z0-9.]+)"/g)]
+		.map((m) => m[1]).filter((key) => !key.endsWith('.')));
 	const DYNAMIC_FAMILIES = [
 		{ prefix: 'skin.', ids: SHIPPED_SKINS.map((s) => s.id) },
 		{ prefix: 'material.', ids: ['frosted', 'liquid'] },
-		{ prefix: 'material.', ids: ['frosted', 'liquid'], suffix: '.desc' },
 		// FOLDER_ERROR_KEYS maps each host error code to one of these (the code picks the key at run time).
 		{ prefix: 'bg2.rotationFolder', ids: ['Unset', 'NotAbsolute', 'Missing', 'NotDirectory', 'Unreadable', 'HostDown'] }
 	];
