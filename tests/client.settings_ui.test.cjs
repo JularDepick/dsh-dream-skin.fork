@@ -237,11 +237,13 @@ test('url kind: the link box, the refresh switch, the rotation source and the li
 
 	assert.deepEqual(checkboxLabels(row), ['bg2.refresh', 'bg2.rotation', 'bg2.autodim'],
 		'url kind adds the scheduled-refresh and rotation switches in front of the shared auto-dim one');
+	// W6a: the three kind chips are gone — the FORM is a <select> now (see §13) — and
+	// what stays here is the fixed picture's own source pair (link / local file).
 	assert.deepEqual(pressedChips(row), [
-		['bg2.local', false], ['bg2.url', true], ['bg2.gradient', false],
+		['bg2.url', true], ['bg2.local', false],
 		['bg2.fillCover', true], ['bg2.fillContain', false], ['bg2.fillBlur', false],
 		['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false]
-	], 'three kind chips, three fill chips and two rotation-source chips, each mirroring the store');
+	], 'the image-source pair, three fill chips and two rotation-source chips, each mirroring the store');
 
 	const list = findOne(row, (node) => node.tag === 'textarea');
 	assert.ok(list, 'the link list is a textarea');
@@ -401,9 +403,11 @@ test('mutation: moving one row down the slot order reddens the order baseline', 
 });
 
 test('mutation: a kind conditional that stops discriminating reddens the gradient baseline', () => {
-	const anchor = 'kind === "gradient" ? (0, react_jsx_runtime.jsxs)("div", {';
+	// W6a: the gradient preset grid is now gated on the DERIVED form, not on the raw
+	// kind — a solid colour is kind=gradient too, and it must not show the presets.
+	const anchor = 'form === "gradient" ? (0, react_jsx_runtime.jsxs)("div", {';
 	assert.equal(countOf(CODE, anchor), 1, 'the gradient-branch anchor must occur exactly once: ' + anchor);
-	const mutated = CODE.replace(anchor, 'kind === "url" ? (0, react_jsx_runtime.jsxs)("div", {');
+	const mutated = CODE.replace(anchor, 'form === "solid" ? (0, react_jsx_runtime.jsxs)("div", {');
 	assert.notEqual(mutated, CODE, 'mutation ② has to change the bundle');
 
 	const controlPage = buildSettingsPage({});
@@ -702,15 +706,21 @@ test('mutation: putting outline: none back reddens the focus case', () => {
 
 /** The four chip groups, by the i18n key each chip prints (the identity translator keeps the key). */
 const CHIP_GROUPS = {
-	kind: ['bg2.local', 'bg2.url', 'bg2.gradient'],
+	// W6a: the three kind chips became the form <select>; the source pair is what a
+	// fixed picture offers, so it takes this slot in the four-group check.
+	fixedSource: ['bg2.url', 'bg2.local'],
 	fill: ['bg2.fillCover', 'bg2.fillContain', 'bg2.fillBlur'],
-	source: ['bg2.rotationSourceLinks', 'bg2.rotationSourceFolder'],
+	rotationSource: ['bg2.rotationSourceLinks', 'bg2.rotationSourceFolder'],
 	order: ['bg2.rotationSequential', 'bg2.rotationRandom']
 };
 
-/** The state every chip-group case renders: a URL wallpaper rotating through two links in random order. */
+/**
+ * The state every chip-group case renders: a URL wallpaper with two links in random
+ * order. W6a: the rotation switch is OFF on purpose — a fixed picture is what shows
+ * the FIXED source pair, and the rotation's own source chips are checked separately.
+ */
 const ROTATING = {
-	on: true,
+	on: false,
 	mode: 'random',
 	minutes: 30,
 	urls: ['https://a.jpg', 'https://b.jpg'],
@@ -788,14 +798,14 @@ test('shared controls: each of the four chip groups announces exactly one presse
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: ROTATING });
 	const row = page.renderRow(ADV);
-	const groups = [CHIP_GROUPS.kind, CHIP_GROUPS.fill, CHIP_GROUPS.source, CHIP_GROUPS.order];
+	const groups = [CHIP_GROUPS.fixedSource, CHIP_GROUPS.fill, CHIP_GROUPS.rotationSource, CHIP_GROUPS.order];
 	assert.deepEqual(chipGroupProblems(row, groups), [],
 		'four groups, one pressed chip each, and the chips of a group share their parent');
 
 	// The STORE decides which chip is pressed — each group mirrors its own field.
 	const pressed = groups.flat().filter((key) => chipByText(row, key).props['aria-pressed'] === true);
 	assert.deepEqual(pressed, ['bg2.url', 'bg2.fillCover', 'bg2.rotationSourceLinks', 'bg2.rotationRandom'],
-		'a url wallpaper, cover fill, links source and random order are the four selections shown');
+		'a link source, cover fill, links pool and random order are the four selections shown');
 });
 
 test('shared controls: every title line is one shape, and the three help badges are the shared dot', () => {
@@ -820,10 +830,10 @@ test('mutation: dropping the shared chips pressed state reddens the chip-group c
 
 	const page = buildSettingsPage({ code: mutated });
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: ROTATING });
-	const problems = chipGroupProblems(page.renderRow(ADV), [CHIP_GROUPS.kind, CHIP_GROUPS.fill, CHIP_GROUPS.source, CHIP_GROUPS.order]);
+	const problems = chipGroupProblems(page.renderRow(ADV), [CHIP_GROUPS.fixedSource, CHIP_GROUPS.fill, CHIP_GROUPS.rotationSource, CHIP_GROUPS.order]);
 	const silent = problems.filter((problem) => problem.includes('announce no pressed state'));
 	assert.equal(silent.length, 4, 'mutation expected: all four groups lose the announcement, got: ' + JSON.stringify(problems));
-	assert.match(silent[0], /^\[bg2\.local, bg2\.url, bg2\.gradient\]: /, 'and the first defect names the first group');
+	assert.match(silent[0], /^\[bg2\.url, bg2\.local\]: /, 'and the first defect names the first group');
 });
 
 test('mutation: dropping the heading help badge reddens the heading case', () => {
@@ -1333,4 +1343,369 @@ test('mutation: dropping aria-expanded reddens the fold case', () => {
 		'mutation expected: the fold still opens and closes, but a screen reader can no longer hear which');
 });
 
+// ---------------------------------------------------------------------------
+// 13. W6a: the background zone's FOUR forms, one entry each
+//
+// 「同一件事的多个入口收敛成一个入口」 is the whole point of this round, so the
+// cases below are written against ENTRY COUNTS as much as against behaviour:
+// one form <select> (derived from the store, never stored), one image-source
+// choice, one clear button, one recent strip filtered to the current form. The
+// four mutation legs at the end break the derivation, restore the second clear
+// entry and remove the history filter, and expect the SAME checkers to name it.
+// ---------------------------------------------------------------------------
 
+/** A same-colour two-stop gradient — exactly what the row writes for 纯色背景. */
+const solidGradient = (color) => 'linear-gradient(0deg, ' + color + ', ' + color + ')';
+
+/** One shipped preset gradient (a real gradient, therefore NOT a solid one). */
+const PRESET_GRADIENT = 'linear-gradient(135deg, #022c22 0%, #0d9488 100%)';
+
+/** A rotation config with everything but the switch on. */
+const ROTATION = {
+	on: false,
+	mode: 'sequential',
+	minutes: 30,
+	urls: ['https://a.jpg', 'https://b.jpg'],
+	source: 'links',
+	folder: '',
+	folderCount: null,
+	folderError: null
+};
+
+/** The advanced row's form <select>. */
+const formSelect = (nodes) => findOne(nodes, (node) => node.tag === 'select');
+
+/** The option ids the form select offers, in reading order. */
+const formOptionIds = (nodes) => {
+	const select = formSelect(nodes);
+	return select === null ? [] : select.children.filter((child) => child.tag === 'option').map((child) => child.props.value);
+};
+
+/** Pick a form the way a user does: the select's change handler with the option id. */
+const pickFormWith = (page, id) => {
+	const select = formSelect(page.renderRow(ADV));
+	assert.ok(select, 'the advanced row must render the form select');
+	select.props.onChange({ target: { value: id } });
+};
+
+/** The solid-colour presets: buttons whose title IS the colour they paint. */
+const solidChips = (nodes) => findAll(nodes, (node) => node.tag === 'button'
+	&& typeof node.props.title === 'string' && /^#[0-9a-f]{6}$/i.test(node.props.title)
+	&& typeof node.props.style === 'object' && node.props.style !== null
+	&& node.props.style.background === node.props.title);
+
+/** The recent-wallpaper thumbnails: buttons carrying the shared apply wording. */
+const historyThumbs = (nodes) => findAll(nodes, (node) => node.tag === 'button'
+	&& node.props.title === 'background.historyApply');
+
+/** Every button on the panel that clears the wallpaper — under EITHER wording. */
+const clearEntries = (nodes) => findAll(nodes, (node) => node.tag === 'button'
+	&& (firstText([node]) === 'bg2.remove' || firstText([node]) === 'background.remove'));
+
+/**
+ * The state → form table. Each row is a STORE state and the form it reads as; the
+ * positive case and mutation ⑭ both run this table, so a broken derivation is
+ * named by the same line the passing case asserted.
+ */
+const FORM_TABLE = [
+	{ patch: { kind: 'image', gradient: null, rotation: Object.assign({}, ROTATION) }, want: 'fixed', why: 'a local file' },
+	{ patch: { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION) }, want: 'fixed', why: 'a link with the rotation switch off' },
+	{ patch: { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true }) }, want: 'rotation', why: 'kind=url with the rotation switch ON — the derived fourth form' },
+	{ patch: { kind: 'gradient', gradient: null, rotation: Object.assign({}, ROTATION) }, want: 'gradient', why: 'the gradient kind with nothing chosen yet' },
+	{ patch: { kind: 'gradient', gradient: PRESET_GRADIENT, rotation: Object.assign({}, ROTATION) }, want: 'gradient', why: 'a real gradient' },
+	{ patch: { kind: 'gradient', gradient: solidGradient('#3b0764'), rotation: Object.assign({}, ROTATION) }, want: 'solid', why: 'a same-colour two-stop gradient IS the solid form' },
+	{ patch: { kind: 'gradient', gradient: solidGradient('#F5F3EE'), rotation: Object.assign({}, ROTATION) }, want: 'solid', why: 'the colour test does not depend on case' }
+];
+
+/** Everything wrong with the derived form — empty when every state reads as it is. */
+const formTableProblems = (page) => {
+	const problems = [];
+	for (const row of FORM_TABLE) {
+		page.setState(ADV, row.patch);
+		const select = formSelect(page.renderRow(ADV));
+		const got = select === null ? '(no select at all)' : select.props.value;
+		if (got !== row.want) problems.push(row.why + ': the selector reads "' + got + '", the stored state IS "' + row.want + '"');
+	}
+	return problems;
+};
+
+/**
+ * One recent entry per form: a preset gradient, a solid colour, a link and a photo —
+ * the four buckets a five-entry list can hold.
+ */
+const HISTORY_ENTRIES = [
+	{ kind: 'gradient', value: PRESET_GRADIENT },
+	{ kind: 'gradient', value: solidGradient('#3b0764') },
+	{ kind: 'url', value: 'https://example.com/history.jpg' },
+	{ kind: 'image', value: 'data:image/png;base64,QUJD' }
+];
+
+/** The entries each form may show, as the CSS each thumbnail paints. */
+const HISTORY_TABLE = [
+	{ patch: { kind: 'gradient', gradient: PRESET_GRADIENT, rotation: Object.assign({}, ROTATION) }, want: [PRESET_GRADIENT], why: 'the gradient form' },
+	{ patch: { kind: 'gradient', gradient: solidGradient('#3b0764'), rotation: Object.assign({}, ROTATION) }, want: [solidGradient('#3b0764')], why: 'the solid form' },
+	{ patch: { kind: 'url', url: 'https://example.com/history.jpg', rotation: Object.assign({}, ROTATION) }, want: ['url("https://example.com/history.jpg") center/cover no-repeat'], why: 'the fixed-link form' },
+	{ patch: { kind: 'url', url: 'https://example.com/history.jpg', rotation: Object.assign({}, ROTATION, { on: true }) }, want: ['url("https://example.com/history.jpg") center/cover no-repeat'], why: 'the rotation form (its pool entries are links)' },
+	{ patch: { kind: 'image', hasImage: true, rotation: Object.assign({}, ROTATION) }, want: ['url("data:image/png;base64,QUJD") center/cover no-repeat'], why: 'the local-file form' }
+];
+
+/** Everything wrong with the recent strip — empty when each form sees only its own entries. */
+const historyProblems = (page) => {
+	const problems = [];
+	for (const row of HISTORY_TABLE) {
+		page.setState(ADV, row.patch);
+		const got = historyThumbs(page.renderRow(ADV)).map((node) => node.props.style.background);
+		if (got.join(' | ') !== row.want.join(' | ')) problems.push(row.why + ': the strip shows ' + JSON.stringify(got) + ', expected ' + JSON.stringify(row.want));
+	}
+	return problems;
+};
+
+/** Everything wrong with the clear entry — empty when the panel has exactly one. */
+const clearProblems = (nodes) => {
+	const keys = clearEntries(nodes).map((node) => firstText([node]));
+	const problems = [];
+	if (keys.length !== 1) problems.push(keys.length + ' clear entries (' + (keys.join(', ') || 'none') + '): one user decision gets one entry');
+	if (keys.length === 1 && keys[0] !== 'bg2.remove') problems.push('the clear entry reads "' + keys[0] + '", expected the shared 清除壁纸 wording');
+	return problems;
+};
+
+test('w6a: the background form is DERIVED — four forms out of the same three stored values', () => {
+	const page = buildSettingsPage({});
+	assert.deepEqual(formOptionIds(page.renderRow(ADV)), ['solid', 'gradient', 'fixed', 'rotation'],
+		'the design\'s four forms, in the design\'s order');
+	assert.deepEqual(formTableProblems(page), [],
+		'every state reads as the form it IS: solid and gradient split the gradient kind, the rotation switch makes the fourth');
+
+	// The claim behind the whole derivation: NOTHING was added to the store to
+	// carry it. The field set is the one W1 recorded, read through the fixture.
+	assert.deepEqual(Object.keys(page.stateOf(ADV)).sort(), [
+		'autodim', 'fit', 'gradient', 'hasImage', 'kind', 'posX', 'posY',
+		'refreshHours', 'refreshOn', 'revision', 'rotation', 'url', 'zoom'
+	], 'the advanced row store gained no field: the form is computed from kind + gradient + rotation.on');
+});
+
+test('w6a: picking a form writes exactly the state that form IS, and the selector reads it back', () => {
+	const page = buildSettingsPage({});
+	const read = () => formSelect(page.renderRow(ADV)).props.value;
+
+	pickFormWith(page, 'solid');
+	assert.equal(page.stateOf(ADV).kind, 'gradient', '纯色背景 is the gradient kind (A1: no fourth kind)');
+	assert.equal(page.stateOf(ADV).gradient, solidGradient('#0b1120'), 'and its value is a same-colour two-stop gradient');
+	assert.equal(read(), 'solid', 'the selector reads the state back, it does not remember the click');
+
+	pickFormWith(page, 'gradient');
+	assert.match(page.stateOf(ADV).gradient, /^linear-gradient\(135deg, /,
+		'a solid value cannot stay when the user asks for 渐变色: it would derive back to 纯色, so a real gradient is written');
+	assert.equal(solidChips(page.renderRow(ADV)).length, 0, 'and the row is a gradient form now, not a solid one');
+	assert.equal(read(), 'gradient');
+
+	pickFormWith(page, 'fixed');
+	assert.equal(page.stateOf(ADV).kind, 'url', 'a fixed picture needs one of its two kinds, and the link is the default one');
+	assert.equal(read(), 'fixed');
+
+	// 轮播 without a pool: the action refuses (alert + no write), and the row keeps
+	// saying what the state really is instead of pretending the click worked.
+	assert.notEqual(read(), 'rotation', 'nothing armed, so nothing reads as a rotation');
+});
+
+test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not only in an alert', () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
+	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'fixed');
+
+	page.clearHookCalls();
+	pickFormWith(page, 'rotation');
+	const hookKey = page.hookCalls[0] && page.hookCalls[0].hook;
+	assert.equal(typeof hookKey, 'string', 'picking a form that cannot arm must write a view-state cell: ' + JSON.stringify(page.hookCalls));
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'bg2.rotationNeedTwo'],
+		'the reason is the SAME sentence the action would have alerted, kept on the row');
+	assert.equal(page.stateOf(ADV).rotation.on, false, 'and nothing was armed: one link is not a rotation');
+
+	// The state drives the DOM: a page whose cell holds the reason RENDERS it, in the
+	// error colour the other in-place warnings use.
+	const refused = buildSettingsPage({ hookInitials: { [hookKey]: 'bg2.rotationNeedTwo' } });
+	refused.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
+	const row = refused.renderRow(ADV);
+	assert.ok(textOf(row).includes('bg2.rotationNeedTwo'), 'the row has to SAY why the slideshow did not start');
+	const line = findOne(row, (node) => node.tag === 'div' && textOf([node]) === 'bg2.rotationNeedTwo');
+	assert.equal(line.props.style.color, 'var(--dsw-alias-state-error-primary)',
+		'the reason is an error, so it wears the error colour rather than a neutral hint');
+
+	// Once the pool can carry a rotation, the same click arms it. The pool is written
+	// through the ACTION, because that is what the click will read (storage, not the store).
+	page.actionsOf(ADV).setRotationList('https://a.jpg\nhttps://b.jpg');
+	assert.equal(page.stateOf(ADV).rotation.urls.length, 2, 'two links are stored');
+	pickFormWith(page, 'rotation');
+	assert.equal(page.stateOf(ADV).rotation.on, true, 'two links arm it');
+	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'rotation', 'and now the selector really does read 轮播图片');
+});
+
+test('w6a: the image source is ONE choice — link / local file under a fixed picture, the pool under a rotation', () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION) });
+	let row = page.renderRow(ADV);
+	assert.deepEqual(pressedChips(row).filter(([key]) => key === 'bg2.url' || key === 'bg2.local'),
+		[['bg2.url', true], ['bg2.local', false]], 'a fixed link shows the source pair, with the link pressed');
+	assert.ok(!pressedChips(row).some(([key]) => key === 'bg2.gradient'), 'and no third chip: the OTHER forms are the selector\'s job now');
+
+	chipByText(row, 'bg2.local').props.onClick();
+	assert.equal(page.stateOf(ADV).kind, 'image', '本地图片 IS the image kind');
+	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'fixed', 'the form does not move: both sources are a fixed picture');
+	chipByText(page.renderRow(ADV), 'bg2.url').props.onClick();
+	assert.equal(page.stateOf(ADV).kind, 'url', 'and switching back is the same single choice');
+
+	// A rotation has its own pool, so the fixed pair is NOT offered there: one
+	// picture source per form, never two.
+	page.setState(ADV, { rotation: Object.assign({}, ROTATION, { on: true }) });
+	row = page.renderRow(ADV);
+	assert.equal(chipByText(row, 'bg2.local'), null, 'under 轮播图片 there is no "local image" source');
+	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotationSource')),
+		[['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false]], 'the pool choice is the rotation\'s own');
+});
+
+test('w6a: the whole section has exactly ONE clear entry, and the action of the one that left stays on its bag', () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	page.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
+
+	const section = page.renderSection();
+	assert.deepEqual(clearProblems(section), [], 'one danger button, and it is 清除壁纸');
+	assert.ok(!textOf(section).includes('background.remove'),
+		'the removed wording is gone from the panel too — the key was dropped in all eight dictionaries');
+
+	// The image row is a PICKER now. Its clear entry used a different action with a
+	// different outcome (it left url / gradient / kind behind), which is exactly why
+	// two buttons that both read "remove the picture" had to become one.
+	const wallpaperRow = page.renderRow('dream-skin-wallpaper');
+	assert.deepEqual(findAll(wallpaperRow, (node) => node.tag === 'button').map((node) => firstText([node])),
+		['background.choose'], 'the image row offers its file picker and nothing else');
+	const bag = page.actionsOf('dream-skin-wallpaper');
+	assert.equal(typeof bag.setWallpaper, 'function', 'the action the second entry called is still on the bag');
+	assert.equal(typeof bag.clearWallpaper, 'function', 'and so is the one the surviving button uses');
+});
+
+test('w6a: the recent list shows only the entries the CURRENT form can paint', () => {
+	const page = buildSettingsPage({ seed: { 'dsh-dream-skin:wallpaper-history': JSON.stringify(HISTORY_ENTRIES) } });
+	assert.deepEqual(historyProblems(page), [], 'four buckets, one strip: each form sees its own entries and only those');
+
+	// ONE strip, not one per form: whatever the form, the wording prints once.
+	for (const row of HISTORY_TABLE) {
+		page.setState(ADV, row.patch);
+		const rendered = page.renderRow(ADV);
+		assert.equal(findAll(rendered, (node) => node.tag === '#text' && node.text === 'background.history').length, 1,
+			row.why + ': exactly one 最近使用 line');
+	}
+
+	// The thumbnails are the apply entry, so a click has to reach the same action the
+	// image row used — one implementation, two bags.
+	page.setState(ADV, { kind: 'image', hasImage: true, rotation: Object.assign({}, ROTATION) });
+	const thumbs = historyThumbs(page.renderRow(ADV));
+	assert.equal(thumbs.length, 1, 'the local-file form shows the photo');
+	thumbs[0].props.onClick();
+	assert.equal(page.stateOf(ADV).kind, 'image', 'applying a history entry keeps the kind it was recorded with');
+});
+
+test('w6a: each form renders its own control set, and none of the other forms\'', () => {
+	const page = buildSettingsPage({});
+	// 纯色背景: preset colours + the system picker, and no image controls at all.
+	page.setState(ADV, { kind: 'gradient', gradient: solidGradient('#0b1120'), rotation: Object.assign({}, ROTATION), hasImage: false });
+	let row = page.renderRow(ADV);
+	assert.equal(solidChips(row).length, 6, 'six preset colours');
+	assert.deepEqual(solidChips(row).filter((node) => node.props['aria-pressed'] === true).map((node) => node.props.title), ['#0b1120'],
+		'the stored colour is the pressed preset');
+	assert.equal(inputTypes(row).filter((type) => type === 'color').length, 1, 'and the system colour picker beside them');
+	assert.equal(gradientChips(row).length, 0, 'a solid colour is not offered the gradient presets');
+	assert.ok(!textOf(row).includes('bg2.fill'), 'a solid colour has no intrinsic size, so there is no fill choice');
+	assert.equal(chipByText(row, 'bg2.local'), null, 'and no image source');
+	assert.equal(findOne(row, (node) => node.tag === 'input' && node.props.type === 'url'), null, 'nor a link box');
+
+	// 渐变色: the preset stack, and no solid palette.
+	page.setState(ADV, { gradient: PRESET_GRADIENT });
+	row = page.renderRow(ADV);
+	assert.equal(gradientChips(row).length, 6, 'six shipped gradients');
+	assert.equal(solidChips(row).length, 0, 'and no solid palette');
+	assert.equal(inputTypes(row).filter((type) => type === 'color').length, 0, 'no colour picker either');
+
+	// 固定图片 (link): a picture, so fill + framing come back.
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	row = page.renderRow(ADV);
+	assert.ok(textOf(row).includes('bg2.fill'), 'a picture HAS an intrinsic size, so the fill choice is offered');
+	assert.deepEqual(rangeInputs(row).map((node) => firstText([node.parent.children[0]])), ['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
+		'and the framing group, because a stored URL is a picture');
+	assert.equal(solidChips(row).length + gradientChips(row).length, 0, 'no colour controls on a picture');
+
+	// 轮播图片: the pool editor is the rotation's, and the fill/framing still apply.
+	page.setState(ADV, { rotation: Object.assign({}, ROTATION, { on: true }) });
+	row = page.renderRow(ADV);
+	assert.equal(chipByText(row, 'bg2.rotationSourceLinks').props['aria-pressed'], true, 'the pool choice mirrors rotation.source');
+	assert.ok(findOne(row, (node) => node.tag === 'textarea'), 'and the link list is where the pool is edited');
+	assert.equal(solidChips(row).length + gradientChips(row).length, 0);
+});
+
+test('mutation: a solid test that cannot recognise its own value reddens the derivation', () => {
+	const anchor = '\t\t\tconst color = m[1].toLowerCase();\n\t\t\treturn color === m[2].toLowerCase() ? color : null;';
+	assert.equal(countOf(CODE, anchor), 1, 'the solid-colour comparison must occur exactly once: ' + JSON.stringify(anchor));
+	const mutated = CODE.replace(anchor, '\t\t\treturn null;');
+	assert.notEqual(mutated, CODE, 'mutation ⑭ has to change the bundle');
+
+	assert.deepEqual(formTableProblems(buildSettingsPage({})), [], 'control: every state reads as its form');
+	const problems = formTableProblems(buildSettingsPage({ code: mutated }));
+	assert.ok(problems.length >= 2, 'mutation expected: both solid rows lose their form, got: ' + JSON.stringify(problems));
+	assert.match(problems[0], /^a same-colour two-stop gradient IS the solid form: the selector reads "gradient"/,
+		'and the defect names the solid row it broke');
+});
+
+test('mutation: a derivation that forgets the rotation switch reddens the form table', () => {
+	const anchor = '\t\t\tif (kind === "url" && rotationOn) return "rotation";';
+	assert.equal(countOf(CODE, anchor), 1, 'the rotation branch must occur exactly once');
+	const mutated = CODE.replace(anchor, '');
+	assert.notEqual(mutated, CODE, 'mutation ⑮ has to change the bundle');
+
+	assert.deepEqual(formTableProblems(buildSettingsPage({})), [], 'control: the rotation switch is what makes 轮播图片');
+	const problems = formTableProblems(buildSettingsPage({ code: mutated }));
+	assert.deepEqual(problems, ['kind=url with the rotation switch ON — the derived fourth form: the selector reads "fixed", the stored state IS "rotation"'],
+		'mutation expected: the fourth form collapses into 固定图片, which is exactly the regression this table forbids');
+});
+
+test('mutation: putting the second clear entry back reddens the single-clear case', () => {
+	const anchor = '\t\t\t\t\t\t\t\tchildren: t("background.choose")\n\t\t\t\t\t\t\t}),';
+	assert.equal(countOf(CODE, anchor), 1, 'the image row\'s picker anchor must occur exactly once');
+	const mutated = CODE.replace(anchor, '\t\t\t\t\t\t\t\tchildren: t("background.choose")\n' +
+		'\t\t\t\t\t\t\t}), (0, react_jsx_runtime.jsx)("button", {\n' +
+		'\t\t\t\t\t\t\t\ttype: "button",\n' +
+		'\t\t\t\t\t\t\t\tstyle: { ...styles.button, ...styles.buttonDanger },\n' +
+		'\t\t\t\t\t\t\t\tonClick: () => setWallpaper(null),\n' +
+		'\t\t\t\t\t\t\t\tchildren: t("background.remove")\n' +
+		'\t\t\t\t\t\t\t}),');
+	assert.notEqual(mutated, CODE, 'mutation ⑯ has to change the bundle');
+
+	const control = buildSettingsPage({});
+	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	control.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
+	assert.deepEqual(clearProblems(control.renderSection()), [], 'control: one clear entry on the shipped panel');
+
+	const broken = buildSettingsPage({ code: mutated });
+	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	broken.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
+	const problems = clearProblems(broken.renderSection());
+	assert.equal(problems.length, 1, 'mutation expected: two clear entries again, got: ' + JSON.stringify(problems));
+	assert.match(problems[0], /^2 clear entries \(background\.remove, bg2\.remove\)/,
+		'and the defect names both entries — the duplicate this round removed');
+});
+
+test('mutation: dropping the history filter reddens the recent-list case', () => {
+	const anchor = '\t\t\tconst historyForForm = readWallpaperHistory().filter((entry) => historyMatchesForm(entry, form, kind));';
+	assert.equal(countOf(CODE, anchor), 1, 'the filtered history read must occur exactly once');
+	const mutated = CODE.replace(anchor, '\t\t\tconst historyForForm = readWallpaperHistory();');
+	assert.notEqual(mutated, CODE, 'mutation ⑰ has to change the bundle');
+
+	const control = buildSettingsPage({ seed: { 'dsh-dream-skin:wallpaper-history': JSON.stringify(HISTORY_ENTRIES) } });
+	assert.deepEqual(historyProblems(control), [], 'control: every form sees only its own entries');
+
+	const broken = buildSettingsPage({ code: mutated, seed: { 'dsh-dream-skin:wallpaper-history': JSON.stringify(HISTORY_ENTRIES) } });
+	const problems = historyProblems(broken);
+	assert.ok(problems.length >= 3, 'mutation expected: the forms stop discriminating, got: ' + JSON.stringify(problems));
+	assert.match(problems[0], /^the gradient form: the strip shows /,
+		'and the defect names the form it looked at first');
+	assert.ok(problems[0].includes('data:image/png;base64,QUJD'), 'the strip really does show the photo under a gradient form');
+});
