@@ -8230,3 +8230,47 @@ test('folder rotation: a host that never answers is given up on after the deadli
 	assert.equal(aborted, true, 'sample 2: the pending request was aborted');
 	assert.equal(r.h.storeStates['dream-skin-wallpaper-advanced'].rotation.folderError, 'host-unreachable', 'and reported as unreachable');
 });
+
+// ── subfolders and folder-by-folder order ────────────────────────────────────
+// People keep one folder per person. The host lists three levels of real
+// subfolders, and a sequential rotation plays the folder through, then each
+// subfolder by name.
+
+/** Write `rel` (a relative path, subfolders created) into the host's photo folder. */
+const putPhoto = (host, rel, shade) => {
+	nodeFs.mkdirSync(nodePath.dirname(nodePath.join(host.photos, rel)), { recursive: true });
+	nodeFs.writeFileSync(nodePath.join(host.photos, rel), Buffer.from([0x89, 0x50, 0x4e, 0x47, shade, shade, shade]));
+};
+
+test('folder subfolders: sequential rotation plays the folder, then each subfolder by name, and each link serves its file', async (t) => {
+	const host = await startFolderHost(t, ['r.png']);
+	putPhoto(host, 'Bella/b.png', 2);
+	putPhoto(host, 'Anna/a2.png', 3);
+	putPhoto(host, 'Anna/a1.png', 4);
+	putPhoto(host, 'Anna/Beach/s.png', 5);
+	const r = bootFolder(host, { rotation: { lastRotatedAt: Date.now() } });
+	const seen = [];
+	for (let i = 0; i < 6; i++) {
+		const before = r.url();
+		await r.adv.rotateNow();
+		await until(() => r.url() !== before, 'the next image');
+		seen.push(folderName(r.url()));
+	}
+	assert.deepEqual(seen, ['r.png', 'Anna/a1.png', 'Anna/a2.png', 'Anna/Beach/s.png', 'Bella/b.png', 'r.png'], 'folder by folder, by name, wrapping');
+	assert.ok(r.probes.some((p) => /name=Anna%2FBeach%2Fs\.png&/.test(p.url)), 'the separator travels percent-encoded');
+	const served = await host.get(r.probes.find((p) => p.url.includes('Beach')).url);
+	assert.equal(served.status, 200, 'a subfolder link serves its file');
+	assert.ok(Buffer.from(await served.arrayBuffer()).equals(nodeFs.readFileSync(nodePath.join(host.photos, 'Anna', 'Beach', 's.png'))));
+});
+
+test('folder subfolders: the render gate takes a relative path of plain names and nothing near it', async (t) => {
+	const host = await startFolderHost(t);
+	const paints = (name) => {
+		const r = bootRotation({ urls: [], current: `dream-skin/api/folder/file?name=${name}&v=1-1`, rotation: null, fetch: host.hostFetch });
+		try { r.g.main(); return true; } catch { return false; }
+	};
+	for (const name of ['Anna%2Fa.png', 'a%2Fb%2Fc%2Fd.png', '%E6%B2%B3%E5%90%88%2F1.jpg']) assert.equal(paints(name), true, `${name} paints`);
+	for (const name of ['a%2F..%2Fb.png', '..%2Fx.png', '%2Fabs.png', 'a%2F%2Fb.png', '.x%2Fy.jpg', 'a%2F.y.jpg', 'a%2F', 'a%2Fb%2Fc%2Fd%2Fe.png', 'a%5Cb.png', 'a%2F%0Ab.png']) {
+		assert.equal(paints(name), false, `${name} paints nothing`);
+	}
+});

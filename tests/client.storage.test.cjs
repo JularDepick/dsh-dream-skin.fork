@@ -711,3 +711,28 @@ test('every string the folder error map points at is defined in the dictionaries
 	const used = [...new Set([...CODE.matchAll(/(?:\bt|localeT)\("(bg2\.rotation[A-Za-z]*)"/g)].map((m) => m[1]))];
 	for (const key of used) assert.ok(zh.includes(key), `${key} is defined`);
 });
+
+test('a folder source calls its in-order mode "by folder name"; a link list keeps "in order"', async () => {
+	const h = buildSandbox();
+	const nodes = [];
+	h.factory(makeRequire({ nodes })).apply(makeApplyContext(h));
+	await flush();
+	const calls = [];
+	const props = {
+		setRotation() {}, setRotationList() {}, setRotationSource() {}, setRotationFolder() {}, setRotationMinutes() {}, rotateNow() {},
+		setRotationMode: (v) => calls.push(['setRotationMode', v])
+	};
+	const rot = (over) => ({ on: true, mode: 'sequential', minutes: 30, urls: ['https://a.example/1.jpg', 'https://a.example/2.jpg'], source: 'folder', folder: '/Users/me/Pictures', folderCount: 12, folderError: null, ...over });
+	const state = (over) => ({ kind: 'url', url: null, gradient: null, history: [], rotation: rot(over) });
+	const buttonWith = (seen, text) => seen.find((n) => n.type === 'button' && Array.isArray(n.props.children) && n.props.children[0] === text);
+
+	let seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({}), props);
+	assert.ok(buttonWith(seen, 'bg2.rotationByFolder'), 'folder source: the in-order mode reads "by folder name"');
+	assert.equal(buttonWith(seen, 'bg2.rotationSequential'), undefined, 'and the plain "in order" label is not there too');
+	assert.ok(buttonWith(seen, 'bg2.rotationRandom'), 'random stays');
+	buttonWith(seen, 'bg2.rotationByFolder').props.onClick();
+	assert.deepEqual(calls, [['setRotationMode', 'sequential']], 'it is the stored sequential mode, no new value');
+	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ source: 'links' }), props);
+	assert.ok(buttonWith(seen, 'bg2.rotationSequential'), 'links source: the plain "in order" label');
+	assert.equal(buttonWith(seen, 'bg2.rotationByFolder'), undefined, 'links have no folders to name');
+});
