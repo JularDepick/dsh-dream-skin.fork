@@ -410,6 +410,10 @@ bundle（`@deepseek-ai/dsh-client-runtime/client`、…）。
 
 </details>
 
+## 工程案例
+
+- [拒绝测试全绿，为什么 `IMG_2340.JPG` 还是打不开？](./docs/case-study-listed-not-served.md)——从一次合并前拦截，看两个接口如何发生契约漂移，以及怎样用“列表中的每个名字都必须可服务”这条不变式防止复发。
+
 ## 📌 Roadmap
 
 > **这张表只列未完成项。** 已交付能力见上文「功能一览」与 [CHANGELOG](CHANGELOG.md)，不在两处留存量——双写必然漂移，本项目已经漂过一次。
