@@ -343,3 +343,36 @@ test('folder list: past the directory cap the walk stops and says so, and the fi
 	assert.equal(names[0], 'd000/p.png', 'folders are walked in name order');
 	assert.ok(!names.includes('d499/p.png') && !names.includes('d500/p.png'), 'the folders past the cap are not listed');
 });
+
+test('folder: every name the listing returns is actually servable — the lister and the server are ONE contract', async (t) => {
+	// The failure this pins, measured on the first version of these routes: the lister
+	// and the server were two independently written predicates, so a name could be
+	// listed and then refused. The server's reject class was `@-\^` (0x40–0x5E) plus a
+	// bare `_`, i.e. every uppercase letter and underscore — which is exactly what a
+	// camera, a phone or a screenshot tool produces (`IMG_2340.JPG`, `dsc_0012.png`).
+	// The folder source then looked broken for the most common real-world folder while
+	// the refusal cases stayed green, because every fixture name was lowercase and
+	// underscore-free. One example per side defends against that day's typo; the
+	// invariant defends against the next drift, which is the thing that actually
+	// happened. The deepEqual above the loop is load-bearing: without it an empty
+	// listing would satisfy "every listed name is served" vacuously.
+	const f = await fixture(t);
+	const names = [
+		'IMG_2340.JPG', 'dsc_0012.png', 'Screenshot 2026-10-26 at 12.34.56.png',
+		'八骏图 final.jpeg', 'photo (1).webp', 'a_b-c.d.gif', 'UPPER.PNG', 'mix_ed.Case.avif'
+	];
+	names.forEach((name, i) => fs.writeFileSync(path.join(f.photos, name), png(i + 1)));
+	const listing = await f.list();
+	assert.equal(listing.ok, true, 'the listing answered');
+	assert.deepEqual(
+		listing.value.files.map((x) => x.name).sort(),
+		[...names].sort(),
+		'the fixture reached the listing unchanged — a name missing here would make the loop below smaller, not redder'
+	);
+	for (const entry of listing.value.files) {
+		const served = await f.file(entry.name);
+		assert.equal(served.status, 200, `${JSON.stringify(entry.name)} is LISTED but not served — the two predicates disagree`);
+		assert.equal(served.body.length, entry.size, `${JSON.stringify(entry.name)}: the bytes served are the bytes listed`);
+	}
+});
+
