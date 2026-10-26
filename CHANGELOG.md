@@ -2,6 +2,28 @@
 
 记录 `dsh-dream-skin` 的可观变更。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。从 `8.28.0` 起，版本号启用**日期式规则**：`M.D.X`（月.日.当日第几个版本），例如 8 月 28 日首个版本 `8.28.0`，当日再发 `8.28.1`，次日则为 `8.29.0`，以取代旧的 `0.4.x` 语义化版本（日期按维护者本地时区 UTC+8 计）。
 
+## [10.27.0] - 2026-10-27
+
+> **npm 发布包瘦身：随包文档撤出发布包，25→14 个文件、解包 1.11→0.59 MiB（-47%）；同时把 README 在 npm 页面上的相对链接死链改成 GitHub 绝对 URL，并新增一条通用门守住它。** 质量审计：**229 项质量门全过**（217 调色 + 12 工艺），全套 `npm test` 617→**620 全绿**（Windows 上 1 条 chmod 用例按预期跳过）。
+
+### 一、改了什么
+
+- **`package.json` 的 `files` 白名单**删去 5 个条目（11 个文件：`docs/i18n`、`docs/desktop-support.md`、`docs/publishing-to-npm.md`、`docs/design-philosophy.md`、`docs/computed-style-gate-in-ci.md`），仓库里一字不丢。保留 `locale/`、`icon.svg`、`lib/`、`docs/examples`、`docs/themes-spec.md` 与 DSH-Store 存证（存证由 `tests/client.audit_surface.test.cjs` 钉住，不能移）。
+- **README**：语言开关（7 种）、`desktop-support`、`publishing-to-npm`、`release-notes`、`case-study`、`CHANGELOG`、`CONTRIBUTING`、`CODE_OF_CONDUCT`、`SECURITY`、`wallpapers/` 的相对链接改为 GitHub 绝对 URL；指向随包文件（`themes-spec`、`examples`、`evidence`）的链接保持相对。
+- **新门** `tests/package.links.test.cjs`：随包 markdown 里的每个相对链接，必须解析到 `files` 覆盖的路径或 npm 总是发布的文件（`package.json` / `README` / `LICENSE`），否则点名红；带变异腿与「解析相对于文档所在目录」的对照。
+
+### 二、我这一轮自己验证了什么
+
+- `npm pack --dry-run`：14 个文件、618,597 字节（改前 25 个、1,164,441 字节）；压缩包 412.4 KiB → 195.6 KiB（-52.6%）。
+- 新门反向腿：把相对目标指到未随包的 `docs/desktop-support.md` 必须红；绝对 URL 与随包目标必须绿；`docs/themes-spec.md` 里的 `./examples/...` 必须按文档目录解析到 `docs/examples/...`。
+- 三处措辞随事实修正：`tests/host.persistence.test.cjs` 不再声称 `desktop-support.md`「随包」；Store 存证里对 publish runbook 的引用标明是仓库文件。
+
+### 三、诚实边界
+
+- **这条门只覆盖「相对链接是否可达」**：绝对 URL 是否真的能打开、外部仓库是否改名，都不在检查范围内。
+- **瘦身收益按压缩包计**：412.4 KiB → 195.6 KiB（-52.6%），安装下载明显变小；本版同时让「安装包不带维护者文档」成为一条被守住的规则。
+- **`docs/` 的 GitHub 阅读路径不变**：撤出的只是 npm tarball 里的副本。
+
 ## [10.26.1] - 2026-10-26
 
 > **本地文件夹图源现在会往下读三层子文件夹，并按「目录名字」把一个人的、或一个主题的照片先播完再进下一个**（#121，@lisihao）。质量审计：**229 项质量门全过**（217 调色 + 12 工艺，两池都不碰），全套 `npm test` 610→**617 全绿**（Windows 上 1 条 chmod 用例按预期跳过）。

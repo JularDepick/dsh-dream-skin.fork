@@ -130,7 +130,9 @@ const H = '127.0.0.1:8080';
  * The key name and the version are read from the module under test, never
  * hand-copied — but a constant the code exports and the code writes is
  * self-proving, so one test below also requires those two values to appear
- * together in `docs/desktop-support.md`, the document that ships in the tarball.
+ * together in `docs/desktop-support.md`, the document this repository keeps as
+ * the independent witness (it is not shipped in the tarball; the reader is a
+ * contributor, not an installer).
  */
 
 // -------------------------------------------------------------------------
@@ -367,9 +369,9 @@ test('stamp normalization is one table, asserted as a group', async (t) => {
 
 /**
  * The code exports the key name and the code writes it, so a test that only
- * compares those two is self-proving. The independent source is the document
- * that ships inside the tarball: rename the key in code and not in the docs,
- * or磨圆 the docs away, and this names the problem.
+ * compares those two is self-proving. The independent source is the document in
+ * this repository: rename the key in code and not in the docs, or delete the
+ * claim line, and this names the problem.
  *
  * Boundary stated honestly: this is a line-level co-occurrence check. It
  * catches "the sentence was deleted or the numbers drifted"; it does NOT catch
@@ -407,7 +409,7 @@ function mutateClaimLine(text, key, fn) {
 		.join('\n');
 }
 
-test('the reserved key and its version are documented in a file that ships in the tarball', async () => {
+test('the reserved key and its version are documented in desktop-support.md', async () => {
 	await loadIndex();
 	assert.equal(typeof mod.STATE_SCHEMA_KEY, "string", "lib/index.js must export STATE_SCHEMA_KEY (otherwise these legs compare undefined to undefined)");
 	const text = fs.readFileSync(path.join(__dirname, '..', 'docs', 'desktop-support.md'), 'utf8');

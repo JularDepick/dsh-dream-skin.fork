@@ -1,6 +1,6 @@
 # DSH STORE 追评原文（issue #1411，2026-10-15）
 
-**为什么存档**：本仓库有一条自纠纪律——只被"推"过、没被"读"过的因果句要显式作废（见 CHANGELOG 10.15.0 与 `docs/publishing-to-npm.md` §十一）。10.16.0 的全部前提来自外部目录的一条 GitHub 评论，所以那段话必须以**对方原文**留在仓库里，让任何读者能核对"我方摘要"与"对方原话"是否一致。核对门：`tests/client.audit_surface.test.cjs`（"what the catalog actually wrote is archived"）。
+**为什么存档**：本仓库有一条自纠纪律——只被"推"过、没被"读"过的因果句要显式作废（见仓库 CHANGELOG 10.15.0 与仓库 `docs/publishing-to-npm.md` §十一）。10.16.0 的全部前提来自外部目录的一条 GitHub 评论，所以那段话必须以**对方原文**留在仓库里，让任何读者能核对"我方摘要"与"对方原话"是否一致。核对门：`tests/client.audit_surface.test.cjs`（"what the catalog actually wrote is archived"）。
 
 **来源**：`https://github.com/AI-Scarlett/DSH-Store/issues/1411#issuecomment-6195702732`（comment id 6195702732，作者 `AI-Scarlett`，`created_at` `2026-10-15T15:24:28Z`，取回方式 `gh api repos/AI-Scarlett/DSH-Store/issues/comments/6195702732`，取回时间 2026-10-16T03:57Z，正文 sha256 见下）。
 

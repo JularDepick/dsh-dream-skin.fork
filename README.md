@@ -1,5 +1,5 @@
 <p align="center">
-  <strong>中文</strong> · <a href="./docs/i18n/README.en.md">English</a> · <a href="./docs/i18n/README.ja.md">日本語</a> · <a href="./docs/i18n/README.ko.md">한국어</a> · <a href="./docs/i18n/README.es.md">Español</a> · <a href="./docs/i18n/README.fr.md">Français</a> · <a href="./docs/i18n/README.de.md">Deutsch</a> · <a href="./docs/i18n/README.ru.md">Русский</a>
+  <strong>中文</strong> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.en.md">English</a> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.ja.md">日本語</a> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.ko.md">한국어</a> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.es.md">Español</a> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.fr.md">Français</a> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.de.md">Deutsch</a> · <a href="https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/i18n/README.ru.md">Русский</a>
 </p>
 
 <div align="center">
@@ -291,7 +291,7 @@ dsh web   # 重启生效
 > ```
 >
 > 这不是新缺陷，是**旧修复没送达**——排查这类"我明明更新了却没变化"请先核对实装版本号，
-> 步骤见 [docs/publishing-to-npm.md](./docs/publishing-to-npm.md) 第九节。
+> 步骤见 [docs/publishing-to-npm.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/publishing-to-npm.md) 第九节。
 
 **卸载**：
 
@@ -306,29 +306,31 @@ dsh web   # 重启后恢复官方外观
 
 | 项 | 值 |
 |------|-----|
-| DeepSeek Harness (`dsh`) | **同一构建兼容三代宿主**：`0.1.0-rc.6` ~ `0.1.x`（稳定版）与 `0.2.0-rc.1` / `0.2.x`（peer 已放宽为 `>=0.1.0-rc.6 <0.3.0-0`，宿主换代由运行时能力探测兜底）。**宿主升级后皮肤消失但插件显示已装？** 多半是 peer 窗口把整包跳过了——应急出路：`dsh plugin allow-version dsh-dream-skin@<版本> <宿主运行时版本>`（**用户自担风险的显式覆盖**，不是推荐做法），详见 [docs/desktop-support.md](./docs/desktop-support.md) |
+| DeepSeek Harness (`dsh`) | **同一构建兼容三代宿主**：`0.1.0-rc.6` ~ `0.1.x`（稳定版）与 `0.2.0-rc.1` / `0.2.x`（peer 已放宽为 `>=0.1.0-rc.6 <0.3.0-0`，宿主换代由运行时能力探测兜底）。**宿主升级后皮肤消失但插件显示已装？** 多半是 peer 窗口把整包跳过了——应急出路：`dsh plugin allow-version dsh-dream-skin@<版本> <宿主运行时版本>`（**用户自担风险的显式覆盖**，不是推荐做法），详见 [docs/desktop-support.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/desktop-support.md) |
 | Node.js | `>=18` |
 | 浏览器 | 现代 Chromium / WebKit（依赖原生 CSS 变量与 `matchMedia`） |
-| 桌面端 | **第三方 DSH Desktop 壳**：已适配并实机复核（issue #50/#51/#55）。**官方 DSH Desktop**：证据只支持"**预期可加载**"，不支持"已支持"——profile 目录与"壳能加载本插件"这两件事本机已实测（装进 `~/.dsh/profiles/desktop`，用户重启壳后加载，活页读到过我方材质表；路径与读数见 `docs/publishing-to-npm.md` 8.4 与 `docs/desktop-support.md`），但**跨重启的设置持久化本机从未验证**，故本文档**不给**可复制的桌面安装命令。<!-- desktop-claim: load-expected-unverified -->`--profile` 取值必须用宿主**自带**的模板名，照抄第三方文档会装进空壳 profile；判断依据见 **[docs/desktop-support.md](./docs/desktop-support.md)** |
+| 桌面端 | **第三方 DSH Desktop 壳**：已适配并实机复核（issue #50/#51/#55）。**官方 DSH Desktop**：证据只支持"**预期可加载**"，不支持"已支持"——profile 目录与"壳能加载本插件"这两件事本机已实测（装进 `~/.dsh/profiles/desktop`，用户重启壳后加载，活页读到过我方材质表；路径与读数见 `docs/publishing-to-npm.md` 8.4 与 `docs/desktop-support.md`），但**跨重启的设置持久化本机从未验证**，故本文档**不给**可复制的桌面安装命令。<!-- desktop-claim: load-expected-unverified -->`--profile` 取值必须用宿主**自带**的模板名，照抄第三方文档会装进空壳 profile；判断依据见 **[docs/desktop-support.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/desktop-support.md)** |
 
-> **兼容机制**：插件把全部平台 seed 放在受控 `try` 内按候选顺序探测，宿主全部换代时降级为哑模块并打 `console.warn`，不会拖垮 DSH Web（issue #43 已根治）。`0.2.0-rc.1` 起宿主按 peer 范围在 boot 阶段**整包跳过**不兼容插件，peer 窗口即本插件的对外兼容窗口，由回归门强制与 manifest 一致。**但宿主闸门只认 `@deepseek-ai/dsh` 前缀的 peer**：`@deepseek-ai/cordis` 与 `react` **不参与**宿主兼容判定（由包管理器的 semver 解析单独把关）。判定细节与两把尺的对照表见 `tests/package.host_compat.test.cjs` 与 [docs/desktop-support.md](./docs/desktop-support.md)。
+> **兼容机制**：插件把全部平台 seed 放在受控 `try` 内按候选顺序探测，宿主全部换代时降级为哑模块并打 `console.warn`，不会拖垮 DSH Web（issue #43 已根治）。`0.2.0-rc.1` 起宿主按 peer 范围在 boot 阶段**整包跳过**不兼容插件，peer 窗口即本插件的对外兼容窗口，由回归门强制与 manifest 一致。**但宿主闸门只认 `@deepseek-ai/dsh` 前缀的 peer**：`@deepseek-ai/cordis` 与 `react` **不参与**宿主兼容判定（由包管理器的 semver 解析单独把关）。判定细节与两把尺的对照表见 `tests/package.host_compat.test.cjs` 与 [docs/desktop-support.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/desktop-support.md)。
 
-> **第三方目录（DSH-Store）现状**：`AI-Scarlett/DSH-Store#1411` 曾把本插件标为 catalog blocked。其中「`lib/client.js` 超过其审核面单文件上限」一条，已由对方 2026-10-15 的追评收回，原文与正文 sha256 存档在 [`docs/evidence/dsh-store-1411-followup-2026-10-15.md`](./docs/evidence/dsh-store-1411-followup-2026-10-15.md)；其追评留下的「扫描器证明不了 `require` 的有限调用集」由 10.16.0 处理（全文见 [docs/release-notes.md](./docs/release-notes.md)）。**本仓库不承诺收录状态会变绿**——是否放行取决于对方的审查流程。
+> **第三方目录（DSH-Store）现状**：`AI-Scarlett/DSH-Store#1411` 曾把本插件标为 catalog blocked。其中「`lib/client.js` 超过其审核面单文件上限」一条，已由对方 2026-10-15 的追评收回，原文与正文 sha256 存档在 [`docs/evidence/dsh-store-1411-followup-2026-10-15.md`](./docs/evidence/dsh-store-1411-followup-2026-10-15.md)；其追评留下的「扫描器证明不了 `require` 的有限调用集」由 10.16.0 处理（全文见 [docs/release-notes.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/release-notes.md)）。**本仓库不承诺收录状态会变绿**——是否放行取决于对方的审查流程。
 
 <details>
-<summary><b>📜 逐版本更新记录（10.26.0 → 9.9.0）</b></summary>
+<summary><b>📜 逐版本更新记录（10.27.0 → 9.9.0）</b></summary>
 
-**版本 10.26.1（当前）**：**本地文件夹图源现在往下读三层子文件夹，并按「目录名字」轮换——一个文件夹播完再进下一个。** 回归门 **617/617**（610→617：`tests/host.folder.test.cjs` +4、`tests/client.smoke.test.cjs` +2、`tests/client.storage.test.cjs` +1），质量审计 **229/229**（217 调色 + 12 工艺）。列表与取图共用同一条路径段规则；每一级目录都 `lstat` 确认是真目录，软链目录两侧都拒；**Windows 的目录联接（junction）我在本机实测也被跳过**（读数的边界写在 CHANGELOG）。**已知边界**：客户端链接上限 700 字符，编码后超长的名字不参与轮换（有专门用例钉住）。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.26.1`。
+**版本 10.27.0（当前）**：**发布包瘦身——随包文档撤出 npm：25→14 个文件、解包 1.11→0.59 MiB（-47%）、压缩包 412→196 KiB（-53%），同时把 README 在 npm 页面上的相对链接死链改成 GitHub 绝对 URL。** 回归门 **620/620**（617→620：新文件 `tests/package.links.test.cjs` +3，钉「随包文档里的相对链接必须指向随包文件或 npm 总是发布的文件」），质量审计 **229/229**（217 调色 + 12 工艺）。完整文档仍在仓库 `docs/`；npm 包只带运行时、README、主题包规范与 Store 存证。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.27.0`。
 
-**版本 10.26.0（2026-10-26）**：回归门 **610/610**（609→610）：三笔已合入主干的功能一次发出（本地文件夹图源、竖图平铺、壁纸取景）+ 宿主侧不变式「列表返回的每个名字都必须可服务」。全文见 [CHANGELOG.md](./CHANGELOG.md) 的 10.26.0 条。
+**版本 10.26.1（2026-10-26）**：**本地文件夹图源现在往下读三层子文件夹，并按「目录名字」轮换——一个文件夹播完再进下一个。** 回归门 **617/617**（610→617：`tests/host.folder.test.cjs` +4、`tests/client.smoke.test.cjs` +2、`tests/client.storage.test.cjs` +1），质量审计 **229/229**（217 调色 + 12 工艺）。列表与取图共用同一条路径段规则；每一级目录都 `lstat` 确认是真目录，软链目录两侧都拒；**Windows 的目录联接（junction）我在本机实测也被跳过**（读数的边界写在 CHANGELOG）。**已知边界**：客户端链接上限 700 字符，编码后超长的名字不参与轮换（有专门用例钉住）。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.26.1`。
 
-**版本 10.23.0（2026-10-23）**：回归门 **571/571**（569→571）；低功耗三态（`performance` 缺键 = 自动跟随系统「减少透明度」）。全文见 [docs/release-notes.md](./docs/release-notes.md) 的 10.23.0 条。
+**版本 10.26.0（2026-10-26）**：回归门 **610/610**（609→610）：三笔已合入主干的功能一次发出（本地文件夹图源、竖图平铺、壁纸取景）+ 宿主侧不变式「列表返回的每个名字都必须可服务」。全文见 [CHANGELOG.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/CHANGELOG.md) 的 10.26.0 条。
+
+**版本 10.23.0（2026-10-23）**：回归门 **571/571**（569→571）；低功耗三态（`performance` 缺键 = 自动跟随系统「减少透明度」）。全文见 [docs/release-notes.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/release-notes.md) 的 10.23.0 条。
 
 **版本 10.22.0（2026-10-22）**：**修一个我在 10.21.1 写出来的缺陷——低功耗模式关掉了磨砂，却没动菜单底色 46% 的 alpha，结果菜单比正常时更透（#115）。** 菜单本来靠模糊承担可读性，磨砂一没，同一块 46% 就成了能读穿背后聊天的「保鲜膜」。#116（@aurora-zl）只在低功耗开着时给 `--dsw-menu-surface-fill` 发一条 `max(滑杆, 0.92)` 的覆盖，并保留皮肤自己的菜单色相；开关关着一行都不发，磨砂玻璃原样保留；拨开关当帧重发，不残留。新增 1 条用例（两个配色方案都 ≥0.92、激活方案色相不变、正常模式完全不碰该通道、拨开关能加能撤）与 1 次反向破坏（把门控改成 `if (false)` ⇒ 红）；恢复后 157/157 绿。回归门 **569/569**（568→569），质量审计 **229/229**。**边界**：本版只给菜单这一条通道加了下限，composer / 侧栏等其他玻璃面在低功耗下仍会失去模糊；判据是计算值，真机观感以 #115 的回执为准。更新请写确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.22.0`。
 
 留在 README 的只有三条口径：
 
-- **当前版本**：以 [CHANGELOG.md](./CHANGELOG.md) 顶部条目为准，`package.json` 与 release tag 强制一致（由回归门守着）。
+- **当前版本**：以 [CHANGELOG.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/CHANGELOG.md) 顶部条目为准，`package.json` 与 release tag 强制一致（由回归门守着）。
 - **本版读数**：回归门 / 质量审计的通过数写在各版 CHANGELOG 条目里，不在 README 维护第二份数字。
 - **历史为什么这么写**：每条都带当时的实测证据与「反向破坏后是否翻红」的记录，读它是为了判断某条边界今天是否仍然成立。
 
@@ -401,7 +403,7 @@ bundle（`@deepseek-ai/dsh-client-runtime/client`、…）。
   它即自动出现在设置里；记得在**全部 8 种语言词典**（`zh`/`en`/`ja`/`ko`/`es`/`fr`/`de`/`ru`）补 `skin.<id>` 文案。
 - **做一个主题包（推荐分发方式）**：参考 [`docs/examples/sample-theme-pack.json`](./docs/examples/sample-theme-pack.json)，
   一个 `*.dsh-theme.json` 即可在设置里导入或通过分享链接分发给别人，无需改代码。
-- **放你自己的壁纸**：把图片丢进 [`wallpapers/`](./wallpapers/)（注意只在你有权限的前提下分发），再在
+- **放你自己的壁纸**：把图片丢进 [`wallpapers/`](https://github.com/RevolutionLA/dsh-dream-skin/tree/main/wallpapers)（注意只在你有权限的前提下分发），再在
   DSH 的「背景图片」里导入即可。
 - **更新预览图**：预览由 `scripts/generate-skin-mockups.cjs`（真实 token + 弥散光）生成 HTML mockup，
   用无头 Chrome 截图即得 `docs/previews/*.png`，改皮肤 token 后重跑即可保持预览与真实 skin 同步。`docs/previews/manifest.json` 把每张图钉在三重指纹上（发货 token、卡片版式、图片字节与像素尺寸），`npm run previews --check`（不需要浏览器）在「只改配色、没重照图」时翻红并点名是哪套皮肤；找不到无头浏览器时 `npm run previews` 非零退出，不再把 0 产出当成功。这些 PNG **不随包发布**：2.26 MB 的 README 装饰不该由每个使用者下载，`npm pack` 从 2.5 MB 降到 263 kB，README 里的预览图改指 GitHub 绝对地址。
@@ -412,11 +414,11 @@ bundle（`@deepseek-ai/dsh-client-runtime/client`、…）。
 
 ## 工程案例
 
-- [拒绝测试全绿，为什么 `IMG_2340.JPG` 还是打不开？](./docs/case-study-listed-not-served.md)——从一次合并前拦截，看两个接口如何发生契约漂移，以及怎样用“列表中的每个名字都必须可服务”这条不变式防止复发。
+- [拒绝测试全绿，为什么 `IMG_2340.JPG` 还是打不开？](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/case-study-listed-not-served.md)——从一次合并前拦截，看两个接口如何发生契约漂移，以及怎样用“列表中的每个名字都必须可服务”这条不变式防止复发。
 
 ## 📌 Roadmap
 
-> **这张表只列未完成项。** 已交付能力见上文「功能一览」与 [CHANGELOG](CHANGELOG.md)，不在两处留存量——双写必然漂移，本项目已经漂过一次。
+> **这张表只列未完成项。** 已交付能力见上文「功能一览」与 [CHANGELOG](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/CHANGELOG.md)，不在两处留存量——双写必然漂移，本项目已经漂过一次。
 > 每条必须带三样东西：**动机**（来自真实 issue 或实测数据，不写想象中的需求）、**规模**（S ≈ 一个晚上，M ≈ 一个功能版，L ≈ 需要先设计）、
 > **验收判据**（一条**能失败**的检查，不是"做完就好"）。完成即从本表删除。「不做」区与待办同等重要——它替贡献者省掉白跑的一轮。
 
@@ -460,7 +462,7 @@ bundle（`@deepseek-ai/dsh-client-runtime/client`、…）。
 
 ## 🤝 贡献
 
-欢迎提交 Issue 与 PR！请先阅读 [贡献指南](./CONTRIBUTING.md)，并遵循 [Code of Conduct](./CODE_OF_CONDUCT.md)。
+欢迎提交 Issue 与 PR！请先阅读 [贡献指南](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/CONTRIBUTING.md)，并遵循 [Code of Conduct](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/CODE_OF_CONDUCT.md)。
 
 ## ⭐ 支持这个项目
 
@@ -469,7 +471,7 @@ bundle（`@deepseek-ai/dsh-client-runtime/client`、…）。
 
 ## 🔒 安全
 
-发现安全问题？请勿直接开公开 Issue——参见 [安全策略](./SECURITY.md)。
+发现安全问题？请勿直接开公开 Issue——参见 [安全策略](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/SECURITY.md)。
 
 ## 📄 开源协议
 
