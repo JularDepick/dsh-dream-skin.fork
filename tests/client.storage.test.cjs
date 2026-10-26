@@ -339,7 +339,7 @@ test('the empty image-link tab says why the background is blank, and stays quiet
 	assert.equal(hasText(seen, 'bg2.urlEmpty'), false, 'the local-image tab is not this tab and must stay silent');
 
 	// ① the row never renders (silent degradation restored)
-	const never = CODE.replace('kind === "url" && !url ? (0, react_jsx_runtime.jsx)("div", {', 'null ? (0, react_jsx_runtime.jsx)("div", {');
+	const never = CODE.replace('kind === "url" && !url ? NoteLine({', 'null ? NoteLine({');
 	assert.notEqual(never, CODE, 'mutation ① has to change the bundle');
 	const h1 = buildSandbox({ code: never });
 	const n1 = [];
@@ -349,7 +349,7 @@ test('the empty image-link tab says why the background is blank, and stays quiet
 		'① with the guard forced false the row disappears — this is the failure the gate exists to see');
 
 	// ② the row always renders (a warning nobody can turn off)
-	const always = CODE.replace('kind === "url" && !url ? (0, react_jsx_runtime.jsx)("div", {', 'kind === "url" ? (0, react_jsx_runtime.jsx)("div", {');
+	const always = CODE.replace('kind === "url" && !url ? NoteLine({', 'kind === "url" ? NoteLine({');
 	assert.notEqual(always, CODE, 'mutation ② has to change the bundle');
 	const h2 = buildSandbox({ code: always });
 	const n2 = [];
@@ -398,7 +398,7 @@ test('the quota warning reaches the wallpaper row the user reads, in both direct
 });
 
 test('mutation: a hint line that never renders is a silent fallback again', async () => {
-	const mutated = mutate('lastStorageError ? (0, react_jsx_runtime.jsx)("div", {', 'null ? (0, react_jsx_runtime.jsx)("div", {');
+	const mutated = mutate('lastStorageError ? NoteLine({', 'null ? NoteLine({');
 	const h = buildSandbox({ failWrite: (k) => k === 'dsh-dream-skin:accent', code: mutated });
 	const nodes = [];
 	const e = h.factory(makeRequire({ nodes }));
@@ -414,7 +414,7 @@ test('mutation: a hint line that never renders is a silent fallback again', asyn
 });
 
 test('mutation: a hint line that always renders fails the healthy half', async () => {
-	const mutated = mutate('lastStorageError ? (0, react_jsx_runtime.jsx)("div", {', '({}) ? (0, react_jsx_runtime.jsx)("div", {');
+	const mutated = mutate('lastStorageError ? NoteLine({', '({}) ? NoteLine({');
 	const h = buildSandbox({ code: mutated });
 	const nodes = [];
 	const e = h.factory(makeRequire({ nodes }));

@@ -1709,3 +1709,234 @@ test('mutation: dropping the history filter reddens the recent-list case', () =>
 		'and the defect names the form it looked at first');
 	assert.ok(problems[0].includes('data:image/png;base64,QUJD'), 'the strip really does show the photo under a gradient form');
 });
+
+// ---------------------------------------------------------------------------
+// 14. W6b: the picture sub-blocks — two folds, two shared blocks, one wording
+//
+// The design draws S1 (填充方式) and S2 (位置与缩放) as blocks SHARED by both
+// picture forms, and folds 轮播设置 / 位置与缩放 away when the user is not using
+// them. Both halves are only observable through the tree, so the cases below read
+// the fold toggles (announced state + MOUNTED body) and the controls INSIDE them,
+// and the mutation legs at the end break the announced state, the form coverage,
+// the fold's default and one action wiring, one at a time.
+// ---------------------------------------------------------------------------
+
+/**
+ * Every fold toggle under `nodes`, in document order. Found by SHAPE, not by one attribute: a fold
+ * is a button that either announces `aria-expanded` or opens with the caret glyph. A lost attribute
+ * must still be findable, or the mutation that drops it would read as "no folds at all".
+ */
+const CARETS = '\u25be\u25b8';
+const isFoldToggle = (node) => node.tag === 'button'
+	&& (Object.prototype.hasOwnProperty.call(node.props, 'aria-expanded')
+		|| (node.children.length >= 1 && node.children[0].tag === 'span' && CARETS.includes(firstText([node.children[0]]) || '')));
+const foldTogglesOf = (nodes) => findAll(nodes, isFoldToggle);
+
+/** The body a fold mounts while open, or null while it is closed. */
+const foldBody = (toggle) => (toggle.parent !== null && toggle.parent.children.length === 2 ? toggle.parent.children[1] : null);
+
+/**
+ * Everything wrong with one row's folds: which titles appear (in order), that each announces the
+ * state the shared cell was pinned to (`open`), that the announced state and the mounted body are
+ * ONE fact, and that the caret is decoration.
+ */
+const subFoldProblems = (row, expected, open) => {
+	const wantOpen = open !== false;
+	const toggles = foldTogglesOf(row);
+	const problems = [];
+	const titles = toggles.map(titleText);
+	if (titles.join(' | ') !== expected.join(' | ')) {
+		problems.push('the row folds [' + titles.join(', ') + '], expected [' + expected.join(', ') + ']');
+	}
+	for (const toggle of toggles) {
+		const name = titleText(toggle);
+		const announced = toggle.props['aria-expanded'];
+		if (typeof announced !== 'boolean') {
+			problems.push(name + ': the fold does not announce its state (aria-expanded is ' + JSON.stringify(announced) + ')');
+			continue;
+		}
+		if (announced !== wantOpen) problems.push(name + ': ' + (wantOpen ? 'starts closed' : 'starts open') + ', but the fold has no persisted state');
+		const mounted = foldBody(toggle) !== null;
+		if (announced !== mounted) problems.push(name + ': says aria-expanded=' + announced + ' while the body is ' + (mounted ? 'mounted' : 'not mounted'));
+		const caret = toggle.children[0];
+		if (caret === undefined || caret.props['aria-hidden'] !== true) problems.push(name + ': the caret is not aria-hidden');
+	}
+	return problems;
+};
+
+/** The two picture forms the shared blocks have to appear in, and the state that puts a page in each. */
+const PICTURE_FORMS = [
+	['固定图片', { rotation: Object.assign({}, ROTATION) }],
+	['轮播图片', { rotation: Object.assign({}, ROTATION, { on: true }) }]
+];
+
+/** S1's three chips, in the order the design lists them. */
+const FILL_KEYS = ['bg2.fillCover', 'bg2.fillContain', 'bg2.fillBlur'];
+
+/**
+ * Everything wrong with the shared S1 / S2 blocks: present under BOTH picture forms, mirroring the
+ * store, and reaching the SAME row actions with the same arguments. The action bag is spied on
+ * before the renders, so "same action" is observed as a call rather than inferred from a prop name.
+ */
+const sharedBlockProblems = (page) => {
+	const problems = [];
+	const calls = [];
+	const bag = page.actionsOf(ADV);
+	for (const name of ['setFit', 'setFrameX', 'setFrameY', 'setFrameZoom', 'resetFrame']) {
+		bag[name] = (...args) => { calls.push([name].concat(args)); };
+	}
+	for (const [formName, patch] of PICTURE_FORMS) {
+		page.setState(ADV, Object.assign({ kind: 'url', url: 'https://example.com/w.jpg', fit: 'cover', posX: -20, posY: 30, zoom: 150 }, patch));
+		const row = page.renderRow(ADV);
+		const chips = FILL_KEYS.map((key) => chipByText(row, key));
+		const sliders = rangeInputs(row);
+		const labels = sliders.map((node) => firstText([node.parent.children[0]]));
+		if (chips.some((node) => node === null)) {
+			problems.push(formName + ': S1 (填充方式) is not offered');
+			continue;
+		}
+		const pressed = chips.map((node) => node.props['aria-pressed']);
+		if (pressed.join('|') !== 'true|false|false') problems.push(formName + ': S1 does not mirror the stored fit (' + pressed.join('|') + ')');
+		if (labels.join('|') !== 'bg2.frameX|bg2.frameY|bg2.frameZoom') {
+			problems.push(formName + ': S2 (位置与缩放) is not offered (sliders: ' + JSON.stringify(labels) + ')');
+			continue;
+		}
+		const values = sliders.map((node) => node.props.value);
+		if (values.join('|') !== '-20|30|150') problems.push(formName + ': S2 does not mirror the stored framing (' + values.join('|') + ')');
+		const before = calls.length;
+		chips[1].props.onClick();
+		sliders[0].props.onChange({ target: { value: '-35' } });
+		const got = JSON.stringify(calls.slice(before));
+		if (got !== JSON.stringify([['setFit', 'contain'], ['setFrameX', -35]])) {
+			problems.push(formName + ': the shared blocks do not reach the row actions (' + got + ')');
+		}
+	}
+	return problems;
+};
+
+test('w6b: the framing sub-block is its own fold, open by default and mounted inside the row', () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	const row = page.renderRow(ADV);
+	assert.deepEqual(subFoldProblems(row, ['bg2.title', 'bg2.frame']), [],
+		'fixed picture: the block and its 位置与缩放 sub-block are two folds, in reading order');
+	const frame = foldTogglesOf(row)[1];
+	const body = foldBody(frame);
+	assert.deepEqual(body === null ? [] : rangeInputs([body]).map((node) => firstText([node.parent.children[0]])),
+		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
+		'the three framing sliders are INSIDE the fold, so folding really hides them');
+
+	// The click writes the fold's OWN cell — that is what makes two folds in one row two switches.
+	page.clearHookCalls();
+	frame.props.onClick();
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [false], 'the framing toggle asks for the closed state');
+
+	// The state drives the DOM: a page whose cell starts closed mounts nothing in either fold.
+	const closed = buildSettingsPage({ hookInitials: { 'Foldable#0': false } });
+	closed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	const folded = closed.renderRow(ADV);
+	assert.deepEqual(subFoldProblems(folded, ['bg2.title'], false), [],
+		'closed: the outer fold says so and mounts nothing, which is why the inner one is gone with it');
+	assert.deepEqual(rangeInputs(folded), [], 'closed: the framing controls are unmounted, not merely clipped');
+	assert.equal(chipByText(folded, 'bg2.fillCover'), null, 'closed: so is the fill choice in the block body');
+});
+
+test('w6b: 轮播设置 is its own fold, and the pool editor stays outside it', () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 6, rotation: Object.assign({}, ROTATION, { on: true }) });
+	const row = page.renderRow(ADV);
+	assert.deepEqual(subFoldProblems(row, ['bg2.title', 'bg2.frame', 'bg2.rotationSettings']), [],
+		'轮播图片: the block, 位置与缩放 and 轮播设置 are three folds, in reading order');
+	const body = foldBody(foldTogglesOf(row)[2]);
+	const boxes = body === null ? [] : numberInputs([body]);
+	assert.equal(boxes.length, 1, 'the interval box is inside 轮播设置');
+	assert.deepEqual([boxes.length === 0 ? null : boxes[0].props.min, boxes.length === 0 ? null : boxes[0].props.max], [5, 10080],
+		'and it is still the minutes box (5..10080), so the row contract is intact');
+	assert.ok(findOne(body === null ? [] : [body], (node) => node.tag === 'button' && firstText([node]) === 'bg2.rotationRandom'),
+		'the order chips are inside the fold with it');
+	// The pool editor is NOT folded away: it is where the second link comes from.
+	assert.ok(findOne(row, (node) => node.tag === 'textarea'), 'the link list stays outside the fold');
+	assert.equal(numberInputs(row).length, 2, 'the refresh box stays outside too, so the row counts two number boxes');
+});
+
+test('w6b: S1 and S2 are ONE implementation under both picture forms, with the same actions', () => {
+	const page = buildSettingsPage({});
+	assert.deepEqual(sharedBlockProblems(page), [],
+		'the fill choice and the framing group mirror the store and reach the same actions under 固定图片 and 轮播图片');
+});
+
+test('w6b: the sub-block titles are one dictionary key each, added in all eight languages', () => {
+	const LANGS = ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru'];
+	const titles = ['bg2.fill', 'bg2.frame', 'bg2.rotationSettings'];
+	for (const lang of LANGS) {
+		const start = CODE.indexOf('const ' + lang + ' = {');
+		assert.notEqual(start, -1, 'dictionary ' + lang + ' is defined');
+		const body = CODE.slice(start, CODE.indexOf('};', start));
+		for (const key of titles) {
+			assert.ok(body.includes('"' + key + '":'), lang + ' has no copy for the sub-block title "' + key + '"');
+		}
+	}
+	for (const key of titles) {
+		assert.equal(countOf(CODE, 't("' + key + '")'), 1,
+			'"' + key + '" is looked up exactly once — a sub-block and its title are one thing');
+	}
+});
+
+test('mutation: dropping the shared aria-expanded reddens BOTH sub-block folds', () => {
+	const anchor = '\n\t\t\t\t\t\t"aria-expanded": open,';
+	assert.equal(countOf(CODE, anchor), 1, 'the fold toggle aria anchor must occur exactly once: ' + JSON.stringify(anchor));
+	const mutated = CODE.replace(anchor, '');
+	assert.notEqual(mutated, CODE, 'mutation ⑱ has to change the bundle');
+
+	const control = buildSettingsPage({});
+	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.deepEqual(subFoldProblems(control.renderRow(ADV), ['bg2.title', 'bg2.frame']), [],
+		'control: the shipped folds announce their state');
+
+	const broken = buildSettingsPage({ code: mutated });
+	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.title', 'bg2.frame']), [
+		'bg2.title: the fold does not announce its state (aria-expanded is undefined)',
+		'bg2.frame: the fold does not announce its state (aria-expanded is undefined)'
+	], 'mutation expected: the SHARED toggle goes silent, so the failure names every sub-block that rides on it');
+});
+
+test('mutation: framing that forgets the rotation form reddens the shared-block case', () => {
+	const anchor = 'const showFraming = kind === "image" ? hasImage : kind === "url" ? Boolean(url) : false;';
+	assert.equal(countOf(CODE, anchor), 1, 'the showFraming gate must occur exactly once');
+	const mutated = CODE.replace(anchor, 'const showFraming = kind === "image" ? hasImage : Boolean(url) && !rotation.on;');
+	assert.notEqual(mutated, CODE, 'mutation ⑲ has to change the bundle');
+
+	assert.deepEqual(sharedBlockProblems(buildSettingsPage({})), [], 'control: S2 is mounted under both picture forms');
+	assert.deepEqual(sharedBlockProblems(buildSettingsPage({ code: mutated })), [
+		'轮播图片: S2 (位置与缩放) is not offered (sliders: [])'
+	], 'mutation expected: the frame group survives under a fixed picture and disappears from the rotation form');
+});
+
+test('mutation: a fold that starts closed reddens the default-state case', () => {
+	const anchor = 'const foldState = (0, _react.useState)(true);';
+	assert.equal(countOf(CODE, anchor), 1, 'the fold default anchor must occur exactly once');
+	const mutated = CODE.replace(anchor, 'const foldState = (0, _react.useState)(false);');
+	assert.notEqual(mutated, CODE, 'mutation ⑳ has to change the bundle');
+
+	const broken = buildSettingsPage({ code: mutated });
+	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.title', 'bg2.frame']), [
+		'the row folds [bg2.title], expected [bg2.title, bg2.frame]',
+		'bg2.title: starts closed, but the fold has no persisted state'
+	], 'mutation expected: a reload comes back collapsed — the open state is a view affordance, never persisted');
+});
+
+test('mutation: a shared slider wired to the wrong action reddens the shared-block case', () => {
+	const anchor = 'Slider({ label: t("bg2.frameX"), value: x, min: WALLPAPER_POS_MIN, max: WALLPAPER_POS_MAX, step: 1, format: percent, onChange: setX })';
+	assert.equal(countOf(CODE, anchor), 1, 'the horizontal framing slider line must occur exactly once');
+	const mutated = CODE.replace(anchor, anchor.replace('onChange: setX', 'onChange: setY'));
+	assert.notEqual(mutated, CODE, 'mutation ㉑ has to change the bundle');
+
+	const problems = sharedBlockProblems(buildSettingsPage({ code: mutated }));
+	assert.deepEqual(problems, [
+		'固定图片: the shared blocks do not reach the row actions ([["setFit","contain"],["setFrameY",-35]])',
+		'轮播图片: the shared blocks do not reach the row actions ([["setFit","contain"],["setFrameY",-35]])'
+	], 'mutation expected: the horizontal slider drives the vertical offset — one action per control is what S2 shares');
+});
+
