@@ -1940,7 +1940,7 @@ test('mutation: a fold that starts closed reddens the default-state case', () =>
 });
 
 test('mutation: a shared slider wired to the wrong action reddens the shared-block case', () => {
-	const anchor = 'Slider({ label: t("bg2.frameX"), value: x, min: WALLPAPER_POS_MIN, max: WALLPAPER_POS_MAX, step: 1, format: percent, onChange: setX })';
+	const anchor = '(0, react_jsx_runtime.jsx)(Slider, { label: t("bg2.frameX"), value: x, min: WALLPAPER_POS_MIN, max: WALLPAPER_POS_MAX, step: 1, format: percent, onChange: setX })';
 	assert.equal(countOf(CODE, anchor), 1, 'the horizontal framing slider line must occur exactly once');
 	const mutated = CODE.replace(anchor, anchor.replace('onChange: setX', 'onChange: setY'));
 	assert.notEqual(mutated, CODE, 'mutation ㉑ has to change the bundle');
@@ -2204,4 +2204,113 @@ test('mutation: dropping the export entry reddens the import/export case', () =>
 		.map((node) => firstText([node]));
 	assert.deepEqual(keys, ['packs.import', 'packs.surprise', 'packs.share'],
 		'mutation expected: the export entry is gone, so the zone is incomplete');
+});
+
+// ---------------------------------------------------------------------------
+// 16. W7b: hook OWNERSHIP — a shared helper that declares a hook is rendered as
+//     a component, never invoked as a plain function.
+//
+// THE DEFECT THESE CASES PIN (found on a real installation, not in a unit test):
+// `Slider` owns `useCompactLayout`'s state and `Foldable` owns its open state.
+// Calling either as `Helper({...})` runs it INSIDE the caller's render pass, so
+// its hooks land on the CALLER's hook list. `WallpaperAdvancedRow` renders the
+// framing fold (and the rotation fold) CONDITIONALLY, so the row's hook list
+// changed length between two renders and React aborted the row with #300
+// "Rendered fewer hooks than expected" / #310 "Rendered more hooks than during
+// the previous render": picking another 「背景形式」 blanked the whole row until a
+// reload, while the picked form was already stored.
+//
+// The fixture records hook CELLS (`owner#index`) but does not enforce React's
+// ordering, so these cases pin the observable consequence instead: the cells the
+// ROW itself declares must be the same under every form, and the cells of a
+// hook-owning helper must be owned by that helper.
+// ---------------------------------------------------------------------------
+
+/** The owner name the fixture gives the advanced row's own hook cells. */
+const ADV_HOOK_OWNER = 'WallpaperAdvancedRow';
+
+/**
+ * The six store states that matter: the framing fold (and the rotation fold) come
+ * and go with them, which is exactly what used to change the row's hook list.
+ */
+const ADV_FORM_STATES = [
+	['固定图片（本地图，已选图，可取景）', { kind: 'image', hasImage: true, url: null }],
+	['固定图片（本地图，还没选图）', { kind: 'image', hasImage: false, url: null }],
+	['固定图片（图片链接，已填链接，可取景）', { kind: 'url', url: 'https://example.com/w.jpg' }],
+	['固定图片（图片链接，框里还是空的）', { kind: 'url', url: null }],
+	['渐变色', { kind: 'gradient', url: null }],
+	['轮播图片', {
+		kind: 'url',
+		url: 'https://example.com/a.jpg',
+		rotation: { on: true, mode: 'sequential', minutes: 30, source: 'links', urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'] }
+	}]
+];
+
+/** The hook cells the advanced row ITSELF declares, in read order (children own their own). */
+const rowOwnedHookCells = (page) => {
+	page.clearHookKeys();
+	page.renderRow(ADV);
+	return page.hookKeys.filter((key) => key.indexOf(ADV_HOOK_OWNER + '#') === 0);
+};
+
+/** One problem per form whose ROW-owned hook list differs from the first form's. */
+const hookOwnershipProblems = (page) => {
+	const lists = ADV_FORM_STATES.map(([label, patch]) => {
+		page.setState(ADV, patch);
+		return [label, rowOwnedHookCells(page)];
+	});
+	const baseline = lists[0][1];
+	const problems = [];
+	for (const [label, cells] of lists) {
+		if (cells.join(',') !== baseline.join(',')) {
+			problems.push(label + ': the row owns ' + cells.length + ' hook cells, expected ' + baseline.length + ' (' + cells.join(',') + ')');
+		}
+	}
+	return problems;
+};
+
+test('w7b: the row hook list does not change when a conditional block mounts', () => {
+	assert.deepEqual(hookOwnershipProblems(buildSettingsPage({})), [],
+		'the row hook list is the same under every 背景形式 — a length change is React #300/#310 and blanks the row');
+});
+
+test('w7b: the hook-owning helpers own their cells, not the row that renders them', () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	page.clearHookKeys();
+	page.renderRow(ADV);
+	const withFrame = page.hookKeys;
+	assert.equal(withFrame.filter((key) => key === 'Slider#0').length, 3,
+		'the three framing sliders each own the cell useCompactLayout reads');
+	assert.equal(withFrame.filter((key) => key === 'Foldable#0').length, 2,
+		'the block fold and the framing fold each own their open state');
+
+	page.setState(ADV, { kind: 'gradient', url: null });
+	page.clearHookKeys();
+	page.renderRow(ADV);
+	const frameFree = page.hookKeys;
+	assert.equal(frameFree.filter((key) => key.indexOf('Slider#') === 0).length, 0,
+		'no picture, no framing sliders — and therefore no slider hook cells at all');
+	assert.equal(frameFree.filter((key) => key === 'Foldable#0').length, 1,
+		'only the block fold is left, and it still owns its own state');
+});
+
+test('mutation: invoking a hook-owning helper inline reddens the hook-ownership cases', () => {
+	const anchor = '(0, react_jsx_runtime.jsx)(Slider, { label: t("bg2.frameX")';
+	assert.equal(countOf(CODE, anchor), 1, 'the horizontal framing slider element must occur exactly once');
+	const mutated = CODE.replace(anchor, 'Slider({ label: t("bg2.frameX")');
+	assert.notEqual(mutated, CODE, 'mutation ㉕ has to change the bundle');
+
+	const problems = hookOwnershipProblems(buildSettingsPage({ code: mutated }));
+	assert.equal(problems.length, 3,
+		'mutation expected: exactly the three framing-free forms now disagree with the three framing forms\n' + problems.join('\n'));
+	for (const label of ['固定图片（本地图，还没选图）', '固定图片（图片链接，框里还是空的）', '渐变色']) {
+		assert.ok(problems.some((problem) => problem.indexOf(label + ':') === 0),
+			'mutation expected: ' + label + ' is named, got ' + problems.join(' | '));
+	}
+	// And the framing form really renders one MORE cell on the row itself, which is the crash.
+	const broken = buildSettingsPage({ code: mutated });
+	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.equal(rowOwnedHookCells(broken).length, rowOwnedHookCells(buildSettingsPage({})).length + 1,
+		'mutation expected: the inlined slider adds one cell to the row, so the list length tracks the fold');
 });

@@ -52,6 +52,10 @@ const REACT = {
 		const owner = HOOK_OWNER === null ? 'anonymous' : HOOK_OWNER.name;
 		const index = HOOK_OWNER === null ? 0 : HOOK_OWNER.index++;
 		const key = owner + '#' + index;
+		// Which component OWNS the cell is the point of the W7b case below: a shared helper
+		// invoked as a plain function puts its hooks on the CALLER's list, so the list changes
+		// length when a conditional block appears or disappears (React #300/#310 at runtime).
+		if (Array.isArray(RENDER.hookKeys)) RENDER.hookKeys.push(key);
 		const pinned = RENDER.initials !== null && Object.prototype.hasOwnProperty.call(RENDER.initials, key);
 		// The calls array is captured here, not read off RENDER later: a test fires a handler AFTER
 		// the render pass ends, when RENDER has been restored.
@@ -278,7 +282,8 @@ function buildSettingsPage(opts) {
 	if (options.noMatchMedia === true) delete sandbox.window.matchMedia;
 	const hookCalls = [];
 	const effects = [];
-	const render = { initials: options.hookInitials || null, calls: hookCalls, effects };
+	const hookKeys = [];
+	const render = { initials: options.hookInitials || null, calls: hookCalls, effects, hookKeys };
 	const created = [];
 	const registrations = [];
 	const dictionaries = [];
@@ -400,6 +405,9 @@ function buildSettingsPage(opts) {
 		renderSection,
 		/** Every `setState` call the rendered components made, in order: `{ hook, value }`. */
 		hookCalls,
+		/** Every hook cell READ by the last render(s), as `owner#index` — whose hook list it landed on. */
+		hookKeys,
+		clearHookKeys() { hookKeys.length = 0; },
 		clearHookCalls() { hookCalls.length = 0; },
 		/** Every effect the rendered components asked for, in render order; RUNNING one is a case's job. */
 		effects,
