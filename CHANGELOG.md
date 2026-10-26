@@ -14,7 +14,7 @@
 
 ### 二、我这一轮自己验证了什么
 
-- `npm pack --dry-run`：14 个文件、618,597 字节（改前 25 个、1,164,441 字节）；压缩包 412.4 KiB → 195.6 KiB（-52.6%）。
+- `npm pack --dry-run`：14 个文件、618,633 字节（改前 25 个、1,164,441 字节）；压缩包 412.4 KiB → 195.6 KiB（-52.6%）。
 - 新门反向腿：把相对目标指到未随包的 `docs/desktop-support.md` 必须红；绝对 URL 与随包目标必须绿；`docs/themes-spec.md` 里的 `./examples/...` 必须按文档目录解析到 `docs/examples/...`。
 - 三处措辞随事实修正：`tests/host.persistence.test.cjs` 不再声称 `desktop-support.md`「随包」；Store 存证里对 publish runbook 的引用标明是仓库文件。
 
