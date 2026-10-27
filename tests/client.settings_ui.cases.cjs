@@ -1589,6 +1589,37 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'rotation', 'and now the selector really does read 图片轮播');
 });
 
+	// And the refusal itself is dropped the moment the pool can carry the rotation: the line
+	// named a condition that no longer holds. The box has no live input in this fixture, so the
+	// typed text is pinned in the row's own cell (#2) — the click reads that cell, not storage.
+	const armed = buildSettingsPage({
+		hookInitials: {
+			'WallpaperAdvancedRow#2': 'https://a.jpg\nhttps://b.jpg',
+			'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo',
+			'WallpaperAdvancedRow#6': 'rotation'
+		}
+	});
+	armed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
+	const armCalls = [];
+	const armBag = armed.actionsOf(ADV);
+	armBag.setRotation = (...args) => { armCalls.push(['setRotation'].concat(args)); };
+	const armRow = armed.renderRow(ADV);
+	armed.clearHookCalls();
+	chipByText(armRow, 'bg2.rotationSave').props.onClick();
+	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#5', null]],
+		'保存列表 clears the refusal line in the same click that arms the rotation');
+	assert.deepEqual(armCalls, [['setRotation', true]], 'and arms it: the pool the user just saved is the one it named');
+
+	// Switching source moves the pool the refusal was about, so the line goes with the switch.
+	armed.clearHookCalls();
+	const switchCalls = [];
+	armBag.setRotationSource = (...args) => { switchCalls.push(['setRotationSource'].concat(args)); };
+	const switchRow = armed.renderRow(ADV);
+	chipByText(switchRow, 'bg2.rotationSourceFolder').props.onClick();
+	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#5', null]],
+		'the source chip drops the stale reason too');
+	assert.deepEqual(switchCalls, [['setRotationSource', 'folder']], 'and still switches the source');
+
 test('w6a: the image source is ONE choice — link / local file under a fixed picture, the pool under a rotation', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION) });
