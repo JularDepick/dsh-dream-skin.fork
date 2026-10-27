@@ -4122,6 +4122,14 @@ test('round-6: first launch applies factory defaults (shipped look)', async () =
 	assert.equal(h.localStorage.getItem('dsh-dream-skin:material-preset'), 'frosted', 'factory material applied (frosted IS the shipped look, blue-team B5)');
 	assert.equal(h.localStorage.getItem('dsh-dream-skin:wallpaper-refresh'), '{"on":0,"hours":24}', 'factory refresh schedule OFF (blue-team B7: third-party polling is opt-in)');
 	assert.equal(h.localStorage.getItem('dsh-dream-skin:wallpaper-fit'), 'cover', 'factory fill mode is part of the shipped look record');
+	// 10.28.0: the shipped look's sidebar half lives in the SHARED table, so the
+	// seed is the one place that shows both keys landing on a fresh profile.
+	// Literals on purpose: these are the declared 10.28.0 numbers, not a
+	// re-derivation out of the bundle (which would make the pin blind).
+	assert.equal(h.localStorage.getItem('dsh-dream-skin:sidebar-opacity'), '0.4',
+		'factory sidebar opacity applied');
+	assert.equal(h.localStorage.getItem('dsh-dream-skin:sidebar-link'), '1',
+		'factory sidebar link applied (linked = follow the wallpaper)');
 	assert.equal(h.localStorage.getItem('dsh-dream-skin:factory-applied'), '1', 'one-shot marker stamped');
 });
 
