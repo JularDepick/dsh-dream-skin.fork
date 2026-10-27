@@ -161,6 +161,25 @@ dsh plugin --profile web add dsh-dream-skin && dsh web
 
 ---
 
+## 🔬 Budget du compositeur (issue #110)
+
+Le flou n'est pas qu'une impression de « plus lourd » : **chaque panneau dépoli est une composition hors écran**, et une seconde fenêtre la double. Donc ici, il y a des chiffres :
+
+```sh
+npm run compositor:audit        # par site : ligne / rayon de flou / sélecteur
+```
+
+(à lancer dans le dépôt — le paquet npm ne contient que le runtime, pas scripts/)
+
+Mesuré dans la moitié navigateur livrée : **6 panneaux `backdrop-filter`** (carte de question de l'hôte 24px, dock tâches/file 20px ; notre modale 14px, zone de saisie 14px, verre liquide 34px), **40 occurrences de radial-gradient**, **2 boucles `requestAnimationFrame`**, plus **un `filter: blur()` plein écran sur le fond** (avec un halo *bleed* plus épais en mode « remplissage flou ») — ce dernier est le poste le plus coûteux, écrit en style inline depuis JS et non dans la feuille de styles, donc un audit qui ne lit que le CSS le manque (la première version du nôtre a fait exactement ça). `tests/compositor_budget.test.cjs` tient ces chiffres : un panneau de plus ou un rayon plus large impose de modifier le tableau de budget avec une raison dans le diff.
+
+**Ce que cela prouve** : combien de panneaux cette version *déclare*, leur épaisseur, et que l'interrupteur basse consommation les couvre réellement (pseudo-éléments et couche de fond compris).
+**Ce que cela ne prouve pas** : combien votre machine en compose à l'instant — cela dépend du nombre de fenêtres, des écrans externes, du pilote et des surfaces montées.
+
+**Si ça rame, activez d'abord la basse consommation** (Réglages → Verre) : elle retire **tous** les `backdrop-filter` (pseudo-éléments compris) et le flou du fond. C'est le seul levier du plugin pour « deux fenêtres ouvertes et ça saccade ».
+
+**Un rapport de performance utile contient** : ① le ressenti basse consommation activée / désactivée ; ② la section Compositing de `chrome://gpu` ; ③ le nombre de fenêtres et d'écrans. Il n'y a pas de Mac M4 sur le bureau du mainteneur — la moitié statique, nous la mesurons ; la moitié à l'exécution a besoin de vos chiffres.
+
 ## 🧩 Quel type de plugin est-ce
 
 **Un `dsh-plugin` standard « tout est un plugin » à double face (dual-face) — chargé et utilisé exactement comme le package officiel `ui-theme`.**

@@ -100,10 +100,10 @@ const CHANNEL_DIVERGENT_KINDS = ['channel-divergent'];
 const CHANNEL_DIVERGENT_GROUPS = {
 	'.lXshSW_root, ._7yHdaG_panel': {
 		kind: 'channel-divergent',
-		measuredAt: '2026-10-13',
+		measuredAt: '2026-10-27',
 		surfaces: [
-			{ module: 'skeleton/TodoPanel.module.css', npmPackage: 'dsh-client-ui-conversation', npmBase: 'lXshSW', shellBase: 'aSus8q' },
-			{ module: 'queue/QueueDock.module.css', npmPackage: 'dsh-client-ui-conversation', npmBase: '_7yHdaG', shellBase: 'v1kfCW' }
+			{ module: 'skeleton/TodoPanel.module.css', npmPackage: 'dsh-client-ui-conversation', npmBase: 'lXshSW', shellBase: 'DXuOLW' },
+			{ module: 'queue/QueueDock.module.css', npmPackage: 'dsh-client-ui-conversation', npmBase: '_7yHdaG', shellBase: 'F07MqG' }
 		],
 		effect: 'cosmetic',
 		carriedBy: {
@@ -135,20 +135,21 @@ const CHANNEL_DIVERGENT_GROUPS = {
 			'The rule adds `backdrop-filter: blur(20px) saturate(140%)` to the todo panel and the queue dock under ' +
 			'`@supports`. Both hashes are present on npm 0.2.0-rc.1 (2 and 4 occurrences in ' +
 			'dsh-client-ui-conversation) and 0 occurrences in the shell bundle, where the same two module paths are ' +
-			'drawn as `aSus8q_*` and `v1kfCW_*`. Until 10.13.0 that meant our frosting was missing on the shell — ' +
+			'drawn as `DXuOLW_*` and `F07MqG_*` (re-derived 2026-10-27, after the 2026-10-23 shell update rolled '
+			+ 'every one of these bases). Until 10.13.0 that meant our frosting was missing on the shell — ' +
 			'a difference in look, not a broken surface, because the host paints its own ' +
 			'`background: var(--dsw-specific-menu)` + `backdrop-filter: var(--dsw-menu-backdrop-filter)` ' +
 			'(= `blur(40px) saturate(150%)`, measured on BOTH channels) on those same elements. With the ' +
 			'`carriedBy` anchors the rule now fires on both channels, so what remains channel-divergent is the ' +
 			'CLASS NAME only, and no refinement rides on it. Not closed by switching to `[class$="_dock"]`: that ' +
-			'suffix has only 3 bases on the shell but one of them is `RlGAzG_dock`, the composer\'s own InputBar ' +
+			'suffix has only 3 bases on the shell but one of them is the composer\'s own InputBar ' +
 			'dock, and blurring the composer is the tooltip containing-block regression recorded in lib/client.js.'
 	},
 	'.uV2eYG_root': {
 		kind: 'channel-divergent',
-		measuredAt: '2026-10-13',
+		measuredAt: '2026-10-27',
 		surfaces: [
-			{ module: 'skeleton/InputBar.module.css', npmPackage: 'dsh-client-ui-conversation', npmBase: 'uV2eYG', shellBase: 'RlGAzG' }
+			{ module: 'skeleton/InputBar.module.css', npmPackage: 'dsh-client-ui-conversation', npmBase: 'uV2eYG', shellBase: 'GRgSLq' }
 		],
 		effect: 'harmless',
 		harmlessBecause: { module: 'skeleton/InputBar.module.css', classSuffix: 'root', mustNotDeclare: 'background' },
@@ -164,7 +165,7 @@ const CHANNEL_DIVERGENT_GROUPS = {
 		},
 		why:
 			'The rule clears a bottom-scrim that used to frame the composer (`background: transparent` on the root). ' +
-			'On the shell the same module draws its root as `RlGAzG_root`, and that declaration block carries no ' +
+			'On the shell the same module draws its root as `GRgSLq_root`, and that declaration block carries no ' +
 			'`background` at all — there is nothing for our rule to undo, so the missing hash cannot change a pixel. ' +
 			'The rule also carries our own `[data-dsh-dream-skin-composer]` selector, which is why the surface is not ' +
 			'unattended on hosts where the hash rolled; the probe deliberately still refuses to count that marker as ' +

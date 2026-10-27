@@ -163,6 +163,25 @@ dsh plugin --profile web add dsh-dream-skin && dsh web
 
 ---
 
+## 🔬 Presupuesto del compositor (issue #110)
+
+El desenfoque no es solo "se ve más pesado": **cada panel esmerilado es una composición fuera de pantalla**, y una segunda ventana la duplica. Así que esto tiene números:
+
+```sh
+npm run compositor:audit        # por sitio: línea / radio de desenfoque / selector
+```
+
+(ejecútalo en el repositorio — el paquete npm solo incluye el runtime, no scripts/)
+
+Medido en la mitad de navegador que se publica: **6 paneles `backdrop-filter`** (tarjeta de pregunta del host 24px, dock de tareas/cola 20px; nuestro modal 14px, entrada 14px, cristal líquido 34px), **40 apariciones de radial-gradient**, **2 bucles `requestAnimationFrame`**, y **un `filter: blur()` a pantalla completa sobre el fondo** (con un halo *bleed* más grueso en el modo "relleno desenfocado"): ese último es el paso más grande de todos, se escribe en línea desde JS y no en la hoja de estilos, así que una auditoría que solo lea CSS lo pierde (la primera versión de la nuestra hizo exactamente eso). `tests/compositor_budget.test.cjs` sujeta estos números: un panel más o un radio mayor obliga a editar la tabla de presupuesto con una razón en el diff.
+
+**Qué demuestra**: cuántos paneles *declara* esta versión, qué grosor tiene cada uno, y que el interruptor de bajo consumo los cubre de verdad (pseudo-elementos y capa de fondo incluidas).
+**Qué no demuestra**: cuántos compone tu máquina ahora mismo — eso depende de tus ventanas, pantallas externas, driver y qué superficies estén montadas.
+
+**Si va lento, activa primero el bajo consumo** (Ajustes → Cristal): elimina **todos** los `backdrop-filter` de la página (`*::before` / `*::after` incluidos) junto con el desenfoque del fondo. Es la única palanca del plugin para "dos ventanas a la vez y se traba".
+
+**Un informe de rendimiento útil incluye**: ① cómo se siente con bajo consumo activado y desactivado; ② la sección Compositing de `chrome://gpu`; ③ cuántas ventanas y pantallas usas. En el escritorio del mantenedor no hay un M4 — la mitad estática la medimos nosotros, la de ejecución necesita tus números.
+
 ## 🧩 Qué tipo de plugin es este
 
 **Un `dsh-plugin` estándar de doble cara «todo es un plugin» — se carga y se usa exactamente igual que el paquete oficial `ui-theme`.**

@@ -2,7 +2,7 @@
  * dsh-dream-skin — the OFFICIAL desktop shell's own bytes, read as a second corpus.
  *
  * Why this exists as a shared module: the shell and the npm install re-roll their CSS-module
- * hashes INDEPENDENTLY (measured: `uV2eYG_*` on npm `0.2.0-rc.1` vs `RlGAzG_*` in the shell's
+ * hashes INDEPENDENTLY (measured: `uV2eYG_*` on npm `0.2.0-rc.1` vs `GRgSLq_*` in the shell (2026-10-23 build)'s
  * `0.2.0-rc.2`, for the same `InputBar.module.css`). Any claim about "what replaced what" is
  * therefore only worth as much as the reading that produced it, and two test files reading the
  * same 121 MB bundle with two hand-written parsers is how such a claim quietly goes stale.

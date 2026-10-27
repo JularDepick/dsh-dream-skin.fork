@@ -161,6 +161,25 @@ dsh plugin --profile web add dsh-dream-skin && dsh web
 
 ---
 
+## 🔬 合成器预算（issue #110）
+
+模糊不是"看着更重"——**每一块磨砂面都是一次离屏合成**，两块窗口同开就是两倍。所以这一项有数可查：
+
+```sh
+npm run compositor:audit        # 逐处：行号 / 模糊半径 / 所在选择器
+```
+
+（在仓库里跑——npm 包只带运行时，不含 scripts/）
+
+当前发货的浏览器半边实测：**6 块 `backdrop-filter` 面板**（宿主的提问卡 24px、待办/队列坞 20px；我方的模态卡 14px、输入框 14px、液态玻璃 34px）、**40 处 radial-gradient**、**2 个 `requestAnimationFrame` 循环**，外加**壁纸层的全屏 `filter: blur()`**（"模糊填充"时还有一层更厚的 bleed 光晕）——最后这笔是最大的一层，它由 JS 写在行内样式上，**不在样式表里**，所以只读 CSS 的审计会把它漏掉（第一版就是这么漏的）。这些数字由 `tests/compositor_budget.test.cjs` 看住：多一块、厚一档，都要在 diff 里改预算表并写理由。
+
+**它能证明什么**：这个版本**声明**了几块面板、每块多厚，以及低功耗开关是否真的覆盖了它们（含伪元素与壁纸层）。
+**它不能证明什么**："你的机器此刻合成了几块"——那取决于窗口数、外接屏、驱动，以及当前挂了哪些面板。
+
+**觉得卡，先开低功耗**（设置 → 玻璃效果）：它会把页面上**每一个** `backdrop-filter`（含 `*::before` / `*::after`）和壁纸那层模糊一起关掉。这是本插件为"两块窗口同开就掉帧"准备的唯一开关。
+
+**报性能 issue 时最有用的三样**：① 开 / 关低功耗各一次的实际感受；② `chrome://gpu` 里 Compositing 那一段；③ 同时开了几个窗口、几块屏。维护者手上没有 M4 机器——静态那一半我们能自己量，动态那一半只能靠你那边。
+
 ## 🧩 它是什么形式的插件
 
 **它是 DeepSeek Harness 的标准「双面插件」（`dsh-plugin`）——加载和用法与官方 `ui-theme` 完全一致。**
@@ -316,9 +335,11 @@ dsh web   # 重启后恢复官方外观
 > **第三方目录（DSH-Store）现状**：`AI-Scarlett/DSH-Store#1411` 曾把本插件标为 catalog blocked。其中「`lib/client.js` 超过其审核面单文件上限」一条，已由对方 2026-10-15 的追评收回，原文与正文 sha256 存档在 [`docs/evidence/dsh-store-1411-followup-2026-10-15.md`](./docs/evidence/dsh-store-1411-followup-2026-10-15.md)；其追评留下的「扫描器证明不了 `require` 的有限调用集」由 10.16.0 处理（全文见 [docs/release-notes.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/release-notes.md)）。**本仓库不承诺收录状态会变绿**——是否放行取决于对方的审查流程。
 
 <details>
-<summary><b>📜 逐版本更新记录（10.27.0 → 9.9.0）</b></summary>
+<summary><b>📜 逐版本更新记录（10.27.1 → 9.9.0）</b></summary>
 
-**版本 10.27.0（当前）**：**发布包瘦身——随包文档撤出 npm：25→14 个文件、解包 1.11→0.59 MiB（-47%）、压缩包 412→196 KiB（-53%），同时把 README 在 npm 页面上的相对链接死链改成 GitHub 绝对 URL。** 回归门 **620/620**（617→620：新文件 `tests/package.links.test.cjs` +3，钉「随包文档里的相对链接必须指向随包文件或 npm 总是发布的文件」），质量审计 **229/229**（217 调色 + 12 工艺）。完整文档仍在仓库 `docs/`；npm 包只带运行时、README、主题包规范与 Store 存证。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.27.0`。
+**版本 10.27.1（2026-10-27）**：**给 #110 一个能复算的静态坐标——并把提出这个想法的评审里三处未经实测的前提纠正过来。** 新脚本 `scripts/compositor-audit.cjs` 逐处列出 `backdrop-filter`、模糊半径、渐变层与 rAF 循环（带行号，注释不计），新门 `tests/compositor_budget.test.cjs` 把这些数字钉在声明的天花板上（6 块面板 / 静态半径 ≤40px / 40 处渐变 / 2 个 rAF / 2 处受低功耗守卫的行内模糊）。评审引用的 "40 处 backdrop-filter、31 处 blur()" 是把注释也算进去的计数（实测：6 条标准声明 + 6 条 `-webkit-` 孪生；17 处 `blur(`）；它写的"低功耗只降透明度、不减 blur"**方向是反的**——低功耗关掉的正是页面上全部 `backdrop-filter`。回归门 **627/627**（10.27.0 为 620），质量审计 **229/229**（217 调色 + 12 工艺）。本版**不改一个像素**：新增的是审计、门与 8 份 README 的「合成器预算」一节。更新请写确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.27.1`。
+
+**版本 10.27.0**：**发布包瘦身——随包文档撤出 npm：25→14 个文件、解包 1.11→0.59 MiB（-47%）、压缩包 412→196 KiB（-53%），同时把 README 在 npm 页面上的相对链接死链改成 GitHub 绝对 URL。** 回归门 **620/620**（617→620：新文件 `tests/package.links.test.cjs` +3，钉「随包文档里的相对链接必须指向随包文件或 npm 总是发布的文件」），质量审计 **229/229**（217 调色 + 12 工艺）。完整文档仍在仓库 `docs/`；npm 包只带运行时、README、主题包规范与 Store 存证。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.27.0`。
 
 **版本 10.26.1（2026-10-26）**：**本地文件夹图源现在往下读三层子文件夹，并按「目录名字」轮换——一个文件夹播完再进下一个。** 回归门 **617/617**（610→617：`tests/host.folder.test.cjs` +4、`tests/client.smoke.test.cjs` +2、`tests/client.storage.test.cjs` +1），质量审计 **229/229**（217 调色 + 12 工艺）。列表与取图共用同一条路径段规则；每一级目录都 `lstat` 确认是真目录，软链目录两侧都拒；**Windows 的目录联接（junction）我在本机实测也被跳过**（读数的边界写在 CHANGELOG）。**已知边界**：客户端链接上限 700 字符，编码后超长的名字不参与轮换（有专门用例钉住）。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.26.1`。
 

@@ -397,11 +397,11 @@ function syntheticWorld(overrides = {}) {
 	};
 	const shellText = overrides.shellText || [
 		"//#region \\0dsh-css:D:\\x\\packages\\client\\ui-conversation\\src\\client\\skeleton\\TodoPanel.module.css.mjs",
-		"const css = \".aSus8q_root{display:flex}.aSus8q_body{}\";",
+		"const css = \".DXuOLW_root{display:flex}.DXuOLW_body{}\";",
 		"//#region \\0dsh-css:D:\\x\\packages\\client\\ui-conversation\\src\\client\\queue\\QueueDock.module.css.mjs",
-		"const css$6 = \".v1kfCW_dock{box-sizing:border-box}.v1kfCW_panel{}\";",
+		"const css$6 = \".F07MqG_dock{box-sizing:border-box}.F07MqG_panel{}\";",
 		"//#region \\0dsh-css:D:\\x\\packages\\client\\ui-conversation\\src\\client\\skeleton\\InputBar.module.css.mjs",
-		"const css$1 = \".RlGAzG_root{padding:0 8px 4px;display:flex}.RlGAzG_dock{}\";",
+		"const css$1 = \".GRgSLq_root{padding:0 8px 4px;display:flex}.GRgSLq_dock{}\";",
 		"\"data-testid\": \"todo-panel\", \"data-queue-dock\": \"\", children: (0, r.jsxs)(\"div\", {",
 		"  className: QueueDock_module_css_default.panel });",
 		""
@@ -477,15 +477,15 @@ test("A1: every way the divergence claim can rot reddens the gate, and each one 
 	// ⑤ the successor rolled: the recorded base is now a stale copy of a fact nobody re-read.
 	legs.push(["successor base rolled", () => {
 		const w = syntheticWorld();
-		w.shellText = w.shellText.replace(/aSus8q_/g, "q7Zz0a_");
+		w.shellText = w.shellText.replace(/DXuOLW_/g, "q7Zz0a_");
 		return channelDivergentProblems(w);
 	}, /re-derived/]);
 
 	// ⑥ the "harmless" claim rots: the host starts declaring the property our rule clears.
 	legs.push(["harmless claim contradicted", () => {
 		const w = syntheticWorld();
-		w.shellText = w.shellText.replace(".RlGAzG_root{padding:0 8px 4px;display:flex}",
-			".RlGAzG_root{background:var(--dsw-specific-menu);padding:0 8px 4px}");
+		w.shellText = w.shellText.replace(".GRgSLq_root{padding:0 8px 4px;display:flex}",
+			".GRgSLq_root{background:var(--dsw-specific-menu);padding:0 8px 4px}");
 		return channelDivergentProblems(w);
 	}, /can change a pixel/]);
 

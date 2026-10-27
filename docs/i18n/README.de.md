@@ -156,6 +156,25 @@ dsh plugin --profile web add dsh-dream-skin && dsh web
 
 ---
 
+## 🔬 Compositor-Budget (Issue #110)
+
+Unschärfe ist nicht nur "sieht schwerer aus" — **jede Milchglas-Fläche ist ein eigener Offscreen-Durchgang**, und ein zweites Fenster verdoppelt das. Deshalb gibt es hier Zahlen:
+
+```sh
+npm run compositor:audit        # pro Stelle: Zeile / Unschärferadius / Selektor
+```
+
+(im Repository ausführen — das npm-Paket enthält nur die Laufzeit, nicht scripts/)
+
+Gemessen in der ausgelieferten Browser-Hälfte: **6 `backdrop-filter`-Flächen** (Fragekarte des Hosts 24px, Todo-/Queue-Dock 20px; unser Modal 14px, Eingabe 14px, Liquid Glass 34px), **40 radial-gradient-Vorkommen**, **2 `requestAnimationFrame`-Schleifen** sowie **ein bildschirmfüllendes `filter: blur()` auf dem Hintergrundbild** (im Modus "unscharf füllen" mit einem dickeren Bleed-Schein) — Letzteres ist der größte Durchgang überhaupt, steht als Inline-Stil im JS statt im Stylesheet, und ein reiner CSS-Audit übersieht ihn (die erste Fassung unseres Audits tat genau das). `tests/compositor_budget.test.cjs` hält diese Zahlen: eine Fläche mehr oder ein dickerer Radius bedeutet, die Budget-Tabelle mit Begründung im Diff zu ändern.
+
+**Was es beweist**: wie viele Flächen dieser Build *deklariert*, wie dick jede ist, und dass der Energiespar-Schalter sie wirklich abdeckt (inklusive Pseudoelementen und Hintergrundbild-Ebene).
+**Was es nicht beweist**: wie viele deine Maschine gerade komponiert — das hängt von Fensterzahl, externen Displays, Treiber und den aktuell eingehängten Flächen ab.
+
+**Wenn es ruckelt: zuerst den Energiesparmodus einschalten** (Einstellungen → Glas): Er entfernt **jedes** `backdrop-filter` (inklusive `*::before` / `*::after`) und die Unschärfe des Hintergrundbilds. Das ist der einzige Hebel dieses Plugins für "zwei Fenster gleichzeitig und es stockt".
+
+**Ein nützlicher Performance-Bericht enthält**: ① das Gefühl mit ein-/ausgeschaltetem Energiesparmodus; ② den Abschnitt Compositing in `chrome://gpu`; ③ Fenster- und Displayanzahl. Auf dem Schreibtisch des Maintainers steht kein M4-Mac — die statische Hälfte messen wir, für die Laufzeit-Hälfte brauchen wir deine Zahlen.
+
 ## 🧩 Was für ein Plugin ist das
 
 **Ein standardmäßiges Dual-Face-„Everything-is-a-Plugin"-`dsh-plugin` — wird genau wie das offizielle Paket `ui-theme` geladen und verwendet.**

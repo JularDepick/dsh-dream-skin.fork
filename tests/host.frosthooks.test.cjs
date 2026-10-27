@@ -302,7 +302,7 @@ function hostFake(testidValue) {
 	].join("\n");
 }
 const npmFake = () => hostFake("todo-panel") + "\n.lXshSW_root{}._7yHdaG_panel{}";
-const shellFake = () => hostFake("todo-panel") + "\n.aSus8q_root{}.v1kfCW_panel{}";
+const shellFake = () => hostFake("todo-panel") + "\n.DXuOLW_root{}.F07MqG_panel{}";
 
 test("A1 pairing mutations: each way the promise can rot reddens its own leg", () => {
 	const legs = [];

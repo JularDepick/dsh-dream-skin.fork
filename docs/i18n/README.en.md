@@ -161,6 +161,25 @@ dsh plugin --profile web add dsh-dream-skin && dsh web
 
 ---
 
+## 🔬 Compositor budget (issue #110)
+
+Blur is not just "looking heavier" — **every frosted pane is a separate offscreen composite**, and a second window doubles it. So this one has numbers:
+
+```sh
+npm run compositor:audit        # per site: line number / blur radius / selector
+```
+
+(run it in the repository — the npm package ships only the runtime, not scripts/)
+
+Measured in the shipped browser half: **6 `backdrop-filter` panes** (the host's question card 24px and todo/queue dock 20px; our modal 14px, composer 14px, liquid glass 34px), **40 radial-gradient occurrences**, **2 `requestAnimationFrame` loops**, plus **one full-viewport `filter: blur()` on the wallpaper** (with a thicker bleed halo in "blurred fill" mode) — that last one is the largest pass of all, it is written inline from JS rather than in the stylesheet, and a CSS-only audit misses it (the first version of ours did exactly that). `tests/compositor_budget.test.cjs` holds these numbers: one more pane or one fatter radius means editing the budget table with a reason in the diff.
+
+**What it proves**: how many panes this build *declares*, how thick each is, and that the low-power switch really covers them (pseudo-elements and the wallpaper layer included).
+**What it does not prove**: how many your machine composites right now — that depends on your window count, external displays, driver and which surfaces are mounted.
+
+**If it feels slow, turn on Low power first** (Settings → Glass): it removes **every** `backdrop-filter` on the page (`*::before` / `*::after` included) together with the wallpaper blur. It is the one lever this plugin has for "two windows at once and it stutters".
+
+**A useful performance report contains**: ① how it feels with low power on vs off; ② the Compositing section of `chrome://gpu`; ③ how many windows and displays you run. There is no M4 Mac on the maintainer's desk — the static half we measure ourselves, the runtime half needs your numbers.
+
 ## 🧩 What kind of plugin is this
 
 **A standard dual-face "everything-is-a-plugin" `dsh-plugin` — loaded and used exactly like the official `ui-theme` package.**
