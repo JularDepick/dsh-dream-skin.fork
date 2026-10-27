@@ -584,26 +584,31 @@ test('mutation: a byte budget of 999999999 keeps the five photos and the quota c
 // The behavior is pinned in client.smoke.test.cjs through the action bag; this case pins the
 // other half, what the settings page shows and which action each control calls, in the same
 // JSX-recording harness as the empty-state case above.
-test('the rotation controls show on the link kind only, and each control calls its own action', async () => {
+test('the two picture forms show their own controls, and each control calls its own action', async () => {
 	const h = buildSandbox();
 	const nodes = [];
 	h.factory(makeRequire({ nodes })).apply(makeApplyContext(h));
 	await flush();
 	const calls = [];
 	const props = {
+		setUrl: (v) => calls.push(['setUrl', v]),
 		setRotation: (v) => calls.push(['setRotation', v]),
 		setRotationList: (v) => calls.push(['setRotationList', v]),
 		setRotationMode: (v) => calls.push(['setRotationMode', v]),
 		setRotationMinutes: (v) => calls.push(['setRotationMinutes', v]),
 		setRefresh: (on, hours) => calls.push(['setRefresh', on, hours]),
+		setAutodim: (v) => calls.push(['setAutodim', v]),
 		rotateNow: () => calls.push(['rotateNow'])
 	};
 	const state = (over) => ({ kind: 'url', url: 'https://example.com/a.jpg', gradient: null, history: [],
 		refreshOn: false, refreshHours: 24,
-		rotation: { on: true, mode: 'random', minutes: 30, urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'] }, ...over });
+		rotation: { on: true, mode: 'random', minutes: 30, urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'], source: 'links' }, ...over });
 	const find = (seen, pred) => seen.find(pred);
+	const switchesIn = (seen) => seen.filter((n) => n.type === 'input' && n.props && n.props.type === 'checkbox');
+	const buttonWith = (seen, text) => find(seen, (n) => n.type === 'button' && (n.props.children === text || (Array.isArray(n.props.children) && n.props.children[0] === text)));
 
-	// Sample 1: a link wallpaper with two saved links shows the whole control set.
+	// Sample 1: 图片轮播 (the rotation switch is what arms the form) shows the pool editor
+	// and its own interval.
 	let seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state(), props);
 	for (const key of ['bg2.rotationList', 'bg2.rotationSave', 'bg2.rotationNow', 'bg2.rotationMinutes', 'bg2.rotationSequential', 'bg2.rotationRandom']) {
 		assert.ok(hasText(seen, key), `${key} is on the page`);
@@ -616,29 +621,44 @@ test('the rotation controls show on the link kind only, and each control calls i
 	const interval = find(seen, (n) => n.type === 'input' && n.props.type === 'number' && n.props.min === 5);
 	assert.equal(interval.props.value, 30, 'the interval box shows the stored value');
 
-	// Each control reaches its own action.
-	const buttonWith = (text) => find(seen, (n) => n.type === 'button' && (n.props.children === text || (Array.isArray(n.props.children) && n.props.children[0] === text)));
-	buttonWith('bg2.rotationSave').props.onClick();
-	buttonWith('bg2.rotationNow').props.onClick();
-	buttonWith('bg2.rotationSequential').props.onClick();
-	// W10: the rotation is a FORM of its own (the 背景形式 selector), so the link kind carries
-	// two switches — the scheduled refresh and the shared auto-dim — and no "rotate" one.
-	const switches = seen.filter((n) => n.type === 'input' && n.props && n.props.type === 'checkbox');
-	assert.equal(switches.length, 2, 'the link kind carries the refresh switch and the shared auto-dim one, nothing else');
+	// Each control reaches its own action. 保存列表 hands the box's draft to the action —
+	// this harness has no live input state, so the draft is still empty and nothing arms;
+	// the row-side arming is a case-file assertion, where a cell can be pinned.
+	buttonWith(seen, 'bg2.rotationSave').props.onClick();
+	buttonWith(seen, 'bg2.rotationNow').props.onClick();
+	buttonWith(seen, 'bg2.rotationSequential').props.onClick();
+	// W11: 图片轮播 carries the shared auto-dim switch and NOT the scheduled-refresh one —
+	// that switch belongs to 固定图片, the form the selector is not on here.
+	const switches = switchesIn(seen);
+	assert.equal(switches.length, 1, '图片轮播 carries the auto-dim switch only, not the refresh one');
 	switches[0].props.onChange({ target: { checked: true } });
-	assert.deepEqual(calls.map((c) => c[0]), ['setRotationList', 'rotateNow', 'setRotationMode', 'setRefresh'], 'one action per control');
+	assert.deepEqual(calls.map((c) => c[0]), ['setRotationList', 'rotateNow', 'setRotationMode', 'setAutodim'],
+		'one action per control, and 保存列表 arms nothing while the box is empty');
 	assert.deepEqual(calls[2], ['setRotationMode', 'sequential'], 'the mode button passes its mode');
-	assert.deepEqual(calls[3], ['setRefresh', true, 24], 'the refresh switch passes its state and the stored interval');
+	assert.deepEqual(calls[3], ['setAutodim', true], 'the auto-dim switch passes the state it was clicked into');
 
-	// Sample 2 (reverse legs): fewer than two links hides the controls that need two; other kinds hide everything.
-	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ rotation: { on: false, mode: 'sequential', minutes: 60, urls: ['https://example.com/a.jpg'] } }), props);
-	assert.ok(hasText(seen, 'bg2.rotationList'), 'the list box is still there to fill in');
-	assert.equal(hasText(seen, 'bg2.rotationNow'), false, 'one link: no "next now"');
-	assert.equal(hasText(seen, 'bg2.rotationMinutes'), false, 'one link: no interval');
+	// Sample 2: 固定图片 — the same link kind with the rotation switch off. The pool editor
+	// and every slideshow control are gone, and the refresh pair is what this form owns.
+	calls.length = 0;
+	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ refreshOn: true, refreshHours: 12, rotation: { on: false, mode: 'sequential', minutes: 60, urls: ['https://example.com/a.jpg'], source: 'links' } }), props);
+	assert.equal(hasText(seen, 'bg2.rotationList'), false, '固定图片 has no link list: that box edits the slideshow pool');
+	assert.equal(hasText(seen, 'bg2.rotationNow'), false, 'nor a "next now" action');
+	assert.equal(hasText(seen, 'bg2.rotationMinutes'), false, 'nor a slideshow interval');
+	assert.ok(hasText(seen, 'bg2.refresh'), 'the scheduled-refresh switch is 固定图片\'s own');
+	const hours = find(seen, (n) => n.type === 'input' && n.props.type === 'number');
+	assert.deepEqual([hours.props.min, hours.props.max, hours.props.value], [1, 720, 12], 'and its hours box shows the stored interval');
+	// The link box has ONE 保存 entry and it hands the box's draft to `setUrl` — the draft is
+	// empty in this harness (no live input), which is why the assertion is about the ACTION
+	// rather than the value.
+	buttonWith(seen, 'bg2.apply').props.onClick();
+	assert.deepEqual(calls, [['setUrl', '']], 'the link box\'s one 保存 entry reaches the action that writes the link');
+
+	// Other kinds own neither pair: the refresh switch is 图片链接's, and 图片轮播's pool is not a picture kind.
 	for (const kind of ['image', 'gradient']) {
 		seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ kind }), props);
 		assert.equal(hasText(seen, 'bg2.rotation'), false, `${kind}: no rotation checkbox`);
 		assert.equal(hasText(seen, 'bg2.rotationList'), false, `${kind}: no list box`);
+		assert.equal(hasText(seen, 'bg2.refresh'), false, `${kind}: no scheduled-refresh switch either`);
 	}
 	// A state from before the rotation field existed renders as "never configured", not as a crash —
 	// and reads back as the 固定图片 form, because a link with no rotation is a fixed picture.

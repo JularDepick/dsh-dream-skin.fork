@@ -241,27 +241,28 @@ test('the glass group lists its three 「单独设置」 gates above the sliders
 // 5. the advanced row's control set follows the wallpaper kind
 // ---------------------------------------------------------------------------
 
-test('url kind: the link box, the refresh switch, the rotation source and the link list', () => {
+test('固定图片 (图片链接): the link box, the refresh switch, and nothing of the slideshow', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
 	const row = page.renderRow(ADV);
 	const urlBox = findOne(row, (node) => node.tag === 'input' && node.props.type === 'url');
 	assert.ok(urlBox, 'url kind renders the link box');
 	assert.equal(urlBox.props.defaultValue, 'https://example.com/w.jpg', 'an uncontrolled box still starts on the stored link');
+	assert.ok(findOne(row, (node) => node.tag === 'button' && firstText([node]) === 'bg2.apply'),
+		'the link has its own 保存 entry, so the box is not write-only');
 
 	assert.deepEqual(checkboxLabels(row), ['bg2.refresh', 'bg2.autodim'],
-		'url kind adds the scheduled-refresh switch in front of the shared auto-dim one — the rotation is the FORM selector\'s job, not a second switch');
-	// W6a: the three kind chips are gone — the FORM is a <select> now (see §13) — and
-	// what stays here is the fixed picture's own source pair (link / local file).
+		'固定图片 carries the scheduled-refresh switch in front of the shared auto-dim one — 图片轮播 carries neither');
+	// The two picture forms own their OWN source pairs: 固定图片 asks where the ONE picture
+	// comes from (link / local file), 图片轮播 asks where its POOL comes from. W11 is what
+	// makes them exclusive — before it, both pairs printed in the same row.
 	assert.deepEqual(pressedChips(row), [
 		['bg2.url', true], ['bg2.local', false],
-		['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
 		['bg2.fillCover', true], ['bg2.fillContain', false], ['bg2.fillBlur', false]
-	], 'the image-source pair, the two rotation-source chips and then the three fill chips — W9 puts the shared blocks after the source controls, each mirroring the store');
-
-	const list = findOne(row, (node) => node.tag === 'textarea');
-	assert.ok(list, 'the link list is a textarea');
-	assert.equal(list.props.rows, 4, 'four visible rows');
+	], 'the fixed picture\'s source pair and then the shared fill chips, each mirroring the store');
+	assert.equal(chipByText(row, 'bg2.rotationSourceLinks'), null, 'no slideshow source chips under a fixed picture');
+	assert.equal(findOne(row, (node) => node.tag === 'textarea'), null,
+		'nor a link list: that box edits the slideshow pool, which this form does not have');
 
 	// Framing only makes sense over a picture, and a stored URL IS one.
 	assert.deepEqual(rangeInputs(row).map((node) => firstText([node.parent.children[0]])),
@@ -316,7 +317,7 @@ test('url kind with nothing stored warns where the control set alone cannot: the
 // 6. the conditional sub-blocks open only while their condition holds
 // ---------------------------------------------------------------------------
 
-test('the refresh / rotation / folder sub-blocks open and close with their own conditions', () => {
+test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮播 — two forms, never one row', () => {
 	const page = buildSettingsPage({});
 	const rotation = (over) => Object.assign({
 		on: true,
@@ -330,7 +331,7 @@ test('the refresh / rotation / folder sub-blocks open and close with their own c
 	}, over || {});
 
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: false });
-	assert.deepEqual(numberInputs(page.renderRow(ADV)), [], 'both switches off → no interval boxes at all');
+	assert.deepEqual(numberInputs(page.renderRow(ADV)), [], '固定图片 with the switch off → no interval box at all');
 
 	page.setState(ADV, { refreshOn: true, refreshHours: 12 });
 	const withRefresh = numberInputs(page.renderRow(ADV));
@@ -338,13 +339,17 @@ test('the refresh / rotation / folder sub-blocks open and close with their own c
 	assert.deepEqual([withRefresh[0].props.min, withRefresh[0].props.max, withRefresh[0].props.value], [1, 720, 12],
 		'the refresh box is hours, 1..720, and shows the persisted value');
 
-	page.setState(ADV, { rotation: rotation() });
-	let row = page.renderRow(ADV);
+	// 图片轮播 is a form of its own (W11), so its pool is checked on a row whose selector
+	// sits on that form — the pinned view cell is how a case reaches a branch the store
+	// cannot derive yet (an unarmed pool derives as 固定图片).
+	const pool = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#6': 'rotation' } });
+	pool.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 12, rotation: rotation() });
+	let row = pool.renderRow(ADV);
 	const numbers = numberInputs(row);
-	assert.equal(numbers.length, 2, 'the 轮播图片 form adds its own interval box next to the refresh one');
-	const rotationBox = numbers[1];
-	assert.deepEqual([rotationBox.props.min, rotationBox.props.max, rotationBox.props.value], [5, 10080, 30],
+	assert.equal(numbers.length, 1, '图片轮播 carries its own interval INSTEAD of the refresh one, so the row never counts two');
+	assert.deepEqual([numbers[0].props.min, numbers[0].props.max, numbers[0].props.value], [5, 10080, 30],
 		'the rotation interval is minutes, 5..10080 (seven days)');
+	assert.ok(!textOf(row).includes('bg2.refresh'), 'and the scheduled-refresh switch is the OTHER form\'s');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
 			['bg2.rotationSequential', true], ['bg2.rotationRandom', false]],
@@ -352,15 +357,16 @@ test('the refresh / rotation / folder sub-blocks open and close with their own c
 	assert.ok(textOf(row).includes('bg2.rotationNow'), 'and the "switch now" action');
 
 	// One link is not a rotation: the mode/interval block closes while the list box stays.
-	page.setState(ADV, { rotation: rotation({ urls: ['https://a.jpg'] }) });
-	row = page.renderRow(ADV);
-	assert.deepEqual(numberInputs(row).map((node) => node.props.value), [12],
-		'below two links the mode/interval block is gone (only the refresh box remains)');
+	pool.setState(ADV, { rotation: rotation({ urls: ['https://a.jpg'] }) });
+	row = pool.renderRow(ADV);
+	assert.deepEqual(numberInputs(row).map((node) => node.props.value), [],
+		'below two links no interval box is left — and the refresh one never comes here');
 	assert.ok(textOf(row).includes('bg2.rotationList'), 'the list box itself stays: that is where the second link comes from');
+	assert.equal(chipByText(row, 'bg2.rotationSequential'), null, 'nor do the mode chips appear while the pool cannot rotate');
 
 	// The folder source swaps the list box for a path box and reports the host's count.
-	page.setState(ADV, { rotation: rotation({ source: 'folder', folder: '~/Pictures/Walls', folderCount: 7 }) });
-	row = page.renderRow(ADV);
+	pool.setState(ADV, { rotation: rotation({ source: 'folder', folder: '~/Pictures/Walls', folderCount: 7 }) });
+	row = pool.renderRow(ADV);
 	assert.equal(findOne(row, (node) => node.tag === 'textarea'), null, 'folder source → no link list');
 	const folderBox = findOne(row, (node) => node.tag === 'input' && node.props.type === 'text');
 	assert.ok(folderBox, 'folder source → a path box');
@@ -809,18 +815,29 @@ const headingProblems = (section) => {
 	return problems;
 };
 
-test('shared controls: each of the four chip groups announces exactly one pressed option', () => {
+test('shared controls: each form\'s chip groups each announce exactly one pressed option', () => {
 	const page = buildSettingsPage({});
-	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: ROTATING });
-	const row = page.renderRow(ADV);
-	const groups = [CHIP_GROUPS.fixedSource, CHIP_GROUPS.fill, CHIP_GROUPS.rotationSource, CHIP_GROUPS.order];
-	assert.deepEqual(chipGroupProblems(row, groups), [],
-		'four groups, one pressed chip each, and the chips of a group share their parent');
-
-	// The STORE decides which chip is pressed — each group mirrors its own field.
-	const pressed = groups.flat().filter((key) => chipByText(row, key).props['aria-pressed'] === true);
-	assert.deepEqual(pressed, ['bg2.url', 'bg2.fillCover', 'bg2.rotationSourceLinks', 'bg2.rotationRandom'],
-		'a link source, cover fill, links pool and random order are the four selections shown');
+	// W11: the two picture forms are mutually exclusive, so their chip groups are too —
+	// 固定图片 shows the source pair, 图片轮播 the pool pair and the order pair, and the
+	// shared fill pair is the only one both carry.
+	const FORMS = [
+		['固定图片', { rotation: ROTATING }, [CHIP_GROUPS.fixedSource, CHIP_GROUPS.fill],
+			['bg2.url', 'bg2.fillCover']],
+		['图片轮播', { rotation: Object.assign({}, ROTATING, { on: true }) }, [CHIP_GROUPS.rotationSource, CHIP_GROUPS.order, CHIP_GROUPS.fill],
+			['bg2.rotationSourceLinks', 'bg2.rotationRandom', 'bg2.fillCover']]
+	];
+	for (const [name, patch, groups, want] of FORMS) {
+		page.setState(ADV, Object.assign({ kind: 'url', url: 'https://example.com/w.jpg' }, patch));
+		const row = page.renderRow(ADV);
+		assert.deepEqual(chipGroupProblems(row, groups), [],
+			name + ': every group it owns is ONE group with one pressed chip');
+		const pressed = groups.flat().filter((key) => chipByText(row, key).props['aria-pressed'] === true);
+		assert.deepEqual(pressed, want, name + ': the store decides which chip each group presses');
+		const foreign = [CHIP_GROUPS.fixedSource, CHIP_GROUPS.rotationSource, CHIP_GROUPS.order]
+			.flat().filter((key) => !groups.flat().includes(key));
+		assert.deepEqual(foreign.filter((key) => chipByText(row, key) !== null), [],
+			name + ': and it carries none of the other form\'s chips');
+	}
 });
 
 test('shared controls: every title line is one shape, and the three help badges are the shared dot', () => {
@@ -845,10 +862,16 @@ test('mutation: dropping the shared chips pressed state reddens the chip-group c
 
 	const page = buildSettingsPage({ code: mutated });
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: ROTATING });
-	const problems = chipGroupProblems(page.renderRow(ADV), [CHIP_GROUPS.fixedSource, CHIP_GROUPS.fill, CHIP_GROUPS.rotationSource, CHIP_GROUPS.order]);
-	const silent = problems.filter((problem) => problem.includes('announce no pressed state'));
-	assert.equal(silent.length, 4, 'mutation expected: all four groups lose the announcement, got: ' + JSON.stringify(problems));
+	const fixedProblems = chipGroupProblems(page.renderRow(ADV), [CHIP_GROUPS.fixedSource, CHIP_GROUPS.fill]);
+	const silent = fixedProblems.filter((problem) => problem.includes('announce no pressed state'));
+	assert.equal(silent.length, 2, 'mutation expected: both of 固定图片\'s groups lose the announcement, got: ' + JSON.stringify(fixedProblems));
 	assert.match(silent[0], /^\[bg2\.url, bg2\.local\]: /, 'and the first defect names the first group');
+
+	page.setState(ADV, { rotation: Object.assign({}, ROTATING, { on: true }) });
+	const poolProblems = chipGroupProblems(page.renderRow(ADV), [CHIP_GROUPS.rotationSource, CHIP_GROUPS.order, CHIP_GROUPS.fill]);
+	const poolSilent = poolProblems.filter((problem) => problem.includes('announce no pressed state'));
+	assert.equal(poolSilent.length, 3, 'mutation expected: all three of 图片轮播\'s groups lose it too, got: ' + JSON.stringify(poolProblems));
+	assert.match(poolSilent[0], /^\[bg2\.rotationSourceLinks, bg2\.rotationSourceFolder\]: /, 'and that defect names the slideshow pair');
 });
 
 test('mutation: dropping the heading help badge reddens the heading case', () => {
@@ -1458,7 +1481,7 @@ const HISTORY_TABLE = [
 	{ patch: { kind: 'gradient', gradient: PRESET_GRADIENT, rotation: Object.assign({}, ROTATION) }, want: [PRESET_GRADIENT], why: 'the gradient form' },
 	{ patch: { kind: 'gradient', gradient: solidGradient('#3b0764'), rotation: Object.assign({}, ROTATION) }, want: [solidGradient('#3b0764')], why: 'the solid form' },
 	{ patch: { kind: 'url', url: 'https://example.com/history.jpg', rotation: Object.assign({}, ROTATION) }, want: ['url("https://example.com/history.jpg") center/cover no-repeat'], why: 'the fixed-link form' },
-	{ patch: { kind: 'url', url: 'https://example.com/history.jpg', rotation: Object.assign({}, ROTATION, { on: true }) }, want: ['url("https://example.com/history.jpg") center/cover no-repeat'], why: 'the rotation form (its pool entries are links)' },
+	{ patch: { kind: 'url', url: 'https://example.com/history.jpg', rotation: Object.assign({}, ROTATION, { on: true }) }, want: [], why: '图片轮播 (its pool is edited in place, so it gets no recent strip)' },
 	{ patch: { kind: 'image', hasImage: true, rotation: Object.assign({}, ROTATION) }, want: ['url("data:image/png;base64,QUJD") center/cover no-repeat'], why: 'the local-file form' }
 ];
 
@@ -1528,15 +1551,16 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 
 	page.clearHookCalls();
 	pickFormWith(page, 'rotation');
-	const hookKey = page.hookCalls[0] && page.hookCalls[0].hook;
-	assert.equal(typeof hookKey, 'string', 'picking a form that cannot arm must write a view-state cell: ' + JSON.stringify(page.hookCalls));
-	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'bg2.rotationNeedTwo'],
-		'the reason is the SAME sentence the action would have alerted, kept on the row');
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation', 'bg2.rotationNeedTwo'],
+		'the row clears the old reason, remembers the pick, then states the reason the action would have alerted');
+	assert.deepEqual(page.hookCalls.map((call) => call.hook),
+		['WallpaperAdvancedRow#5', 'WallpaperAdvancedRow#6', 'WallpaperAdvancedRow#5'],
+		'one cell for the reason and one for the pick: the view state never lands in the store');
 	assert.equal(page.stateOf(ADV).rotation.on, false, 'and nothing was armed: one link is not a rotation');
 
 	// The state drives the DOM: a page whose cell holds the reason RENDERS it, in the
 	// error colour the other in-place warnings use.
-	const refused = buildSettingsPage({ hookInitials: { [hookKey]: 'bg2.rotationNeedTwo' } });
+	const refused = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo' } });
 	refused.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
 	const row = refused.renderRow(ADV);
 	assert.ok(textOf(row).includes('bg2.rotationNeedTwo'), 'the row has to SAY why the slideshow did not start');
@@ -1544,13 +1568,25 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	assert.equal(line.props.style.color, 'var(--dsw-alias-state-error-primary)',
 		'the reason is an error, so it wears the error colour rather than a neutral hint');
 
+	// The deadlock W11 had to break: a refusal must NOT bounce the selector back to
+	// 固定图片, because the pool editor that fixes the refusal lives in the branch the
+	// user just picked. The pick is a view cell, so a pinned one proves the render.
+	const stuck = buildSettingsPage({
+		hookInitials: { 'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo', 'WallpaperAdvancedRow#6': 'rotation' }
+	});
+	stuck.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
+	const stuckRow = stuck.renderRow(ADV);
+	assert.equal(formSelect(stuckRow).props.value, 'rotation', 'the selector stays on the form the user picked');
+	assert.ok(findOne(stuckRow, (node) => node.tag === 'textarea'), 'and the pool editor that resolves the refusal is mounted');
+	assert.ok(!textOf(stuckRow).includes('bg2.refresh'), 'while 固定图片\'s own refresh switch is not');
+
 	// Once the pool can carry a rotation, the same click arms it. The pool is written
 	// through the ACTION, because that is what the click will read (storage, not the store).
 	page.actionsOf(ADV).setRotationList('https://a.jpg\nhttps://b.jpg');
 	assert.equal(page.stateOf(ADV).rotation.urls.length, 2, 'two links are stored');
 	pickFormWith(page, 'rotation');
 	assert.equal(page.stateOf(ADV).rotation.on, true, 'two links arm it');
-	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'rotation', 'and now the selector really does read 轮播图片');
+	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'rotation', 'and now the selector really does read 图片轮播');
 });
 
 test('w6a: the image source is ONE choice — link / local file under a fixed picture, the pool under a rotation', () => {
@@ -1608,8 +1644,11 @@ test('w6a: the recent list shows only the entries the CURRENT form can paint', (
 	for (const row of HISTORY_TABLE) {
 		page.setState(ADV, row.patch);
 		const rendered = page.renderRow(ADV);
-		assert.equal(findAll(rendered, (node) => node.tag === '#text' && node.text === 'background.history').length, 1,
-			row.why + ': exactly one 最近使用 line');
+		assert.equal(findAll(rendered, (node) => node.tag === '#text' && node.text === 'background.history').length,
+			row.want.length === 0 ? 0 : 1,
+			row.why + (row.want.length === 0
+				? ': 图片轮播 shows no 最近使用 line at all — its pool is edited in place'
+				: ': exactly one 最近使用 line'));
 	}
 
 	// The thumbnails are the apply entry, so a click has to reach the same action the
@@ -1862,7 +1901,7 @@ test('w6b: 轮播设置 is its own fold, and the pool editor stays outside it', 
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 6, rotation: Object.assign({}, ROTATION, { on: true }) });
 	const row = page.renderRow(ADV);
 	assert.deepEqual(subFoldProblems(row, ['bg2.rotationSettings', 'bg2.frame']), [],
-		'轮播图片: 轮播设置 and 位置与缩放 are two folds, in reading order — the pool editor comes first');
+		'图片轮播: 轮播设置 and 位置与缩放 are two folds, in reading order — the pool editor comes first');
 	const body = foldBody(foldTogglesOf(row)[0]);
 	const boxes = body === null ? [] : numberInputs([body]);
 	assert.equal(boxes.length, 1, 'the interval box is inside 轮播设置');
@@ -1872,7 +1911,10 @@ test('w6b: 轮播设置 is its own fold, and the pool editor stays outside it', 
 		'the order chips are inside the fold with it');
 	// The pool editor is NOT folded away: it is where the second link comes from.
 	assert.ok(findOne(row, (node) => node.tag === 'textarea'), 'the link list stays outside the fold');
-	assert.equal(numberInputs(row).length, 2, 'the refresh box stays outside too, so the row counts two number boxes');
+	// W11: the stored refresh switch is ON here, and the row still counts ONE number box —
+	// the refresh interval belongs to 固定图片, not to the form on screen.
+	assert.equal(numberInputs(row).length, 1, 'the refresh box is the OTHER form\'s, so it never joins this row');
+	assert.ok(!textOf(row).includes('bg2.refresh'), 'and its switch is not here either');
 });
 
 test('w6b: S1 and S2 are ONE implementation under both picture forms, with the same actions', () => {
@@ -1919,7 +1961,7 @@ test('mutation: dropping the shared aria-expanded reddens BOTH sub-block folds',
 });
 
 test('mutation: framing that forgets the rotation form reddens the shared-block case', () => {
-	const anchor = 'const showFraming = kind === "image" ? hasImage : kind === "url" ? Boolean(url) : false;';
+	const anchor = 'const showFraming = form === "rotation" ? true : kind === "image" ? hasImage : kind === "url" ? Boolean(url) : false;';
 	assert.equal(countOf(CODE, anchor), 1, 'the showFraming gate must occur exactly once');
 	const mutated = CODE.replace(anchor, 'const showFraming = kind === "image" ? hasImage : Boolean(url) && !rotation.on;');
 	assert.notEqual(mutated, CODE, 'mutation ⑲ has to change the bundle');
