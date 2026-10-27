@@ -48,7 +48,11 @@ const BUDGETS = [
 	// style-only repaint path and 5 strings in each of the 8 dictionaries) took it from 498 KB to
 	// 511 KB — 1 KB under the old line, i.e. the next one-line change would have been the "pass"
 	// nobody decided. The headroom is deliberate, not an achieved ceiling.
-	{ rel: 'lib/client.js', ceiling: 544 * 1024, reason: 'browser half; one combo-served file by host design' },
+	// 544 -> 568 KiB on purpose: the folder picker (W12). The design asks for a dialog, not a
+	// typed path, and the host's native chooser does not exist on a headless box — so the panel
+	// that walks the browse capability is part of the browser half now, together with the path
+	// list and 14 strings in each of the 8 dictionaries. 555 KB used, the rest is headroom.
+	{ rel: 'lib/client.js', ceiling: 568 * 1024, reason: 'browser half; one combo-served file by host design' },
 	{ rel: 'lib/index.js', ceiling: 40 * 1024, reason: 'host half' }
 ];
 

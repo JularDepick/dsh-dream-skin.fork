@@ -364,13 +364,21 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	assert.ok(textOf(row).includes('bg2.rotationList'), 'the list box itself stays: that is where the second link comes from');
 	assert.equal(chipByText(row, 'bg2.rotationSequential'), null, 'nor do the mode chips appear while the pool cannot rotate');
 
-	// The folder source swaps the list box for a path box and reports the host's count.
+	// The folder source swaps the link box for the PICKED path (W12: a dialog, never a typed
+	// box) and reports the host's count.
 	pool.setState(ADV, { rotation: rotation({ source: 'folder', folder: '~/Pictures/Walls', folderCount: 7 }) });
 	row = pool.renderRow(ADV);
 	assert.equal(findOne(row, (node) => node.tag === 'textarea'), null, 'folder source → no link list');
-	const folderBox = findOne(row, (node) => node.tag === 'input' && node.props.type === 'text');
-	assert.ok(folderBox, 'folder source → a path box');
-	assert.equal(folderBox.props.defaultValue, '~/Pictures/Walls', 'the path box starts on the saved path');
+	assert.equal(findOne(row, (node) => node.tag === 'input' && (node.props.type === 'text' || node.props.type === undefined)), null,
+		'folder source → no path box either: the folder is picked, not typed');
+	const pathLine = findOne(row, (node) => node.props.title === '~/Pictures/Walls');
+	assert.ok(pathLine, 'folder source → the picked path is listed');
+	assert.equal(textOf([pathLine]), '~/Pictures/Walls', 'the list prints the saved path as text, never as an editable value');
+	assert.ok(chipByText(row, 'bg2.folderAdd'), 'and the one entry that adds a folder is the picker button');
+	assert.ok(!textOf(row).includes('bg2.pathEmpty'), 'the empty line is gone once a folder is in the list');
+	assert.ok(chipByText(row, 'bg2.pathRemove'), 'whose row can only be deleted');
+	assert.equal(findOne(row, (node) => node.props['aria-label'] === 'bg2.dirPick'), null,
+		'the picker panel itself stays closed until that button is clicked');
 	assert.ok(textOf(row).includes('bg2.rotationFolderCount'), 'the count line comes from the store, not from a default');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', false], ['bg2.rotationSourceFolder', true],
@@ -2394,4 +2402,120 @@ test('mutation: invoking a hook-owning helper inline reddens the hook-ownership 
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
 	assert.equal(rowOwnedHookCells(broken).length, rowOwnedHookCells(buildSettingsPage({})).length + 1,
 		'mutation expected: the inlined slider adds one cell to the row, so the list length tracks the fold');
+});
+
+// ---------------------------------------------------------------------------
+// W12: the folder picker — a dialog panel, because a typed path is not a control
+// ---------------------------------------------------------------------------
+
+/** A rotation folder-source row, with the picker already open and its view pinned. */
+const pickerView = (view, opts) => {
+	const options = opts || {};
+	const initials = Object.assign({ 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': view }, options.hookInitials || {});
+	const page = buildSettingsPage({ code: options.code, hookInitials: initials });
+	page.setState(ADV, {
+		kind: 'url',
+		url: null,
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '', folderCount: null, folderError: null }
+	});
+	return findOne(page.renderRow(ADV), (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
+};
+
+const BROWSE_VIEW = {
+	path: '/home/me/Pics',
+	crumbs: [{ name: 'me', path: '/home/me' }, { name: 'Pics', path: '/home/me/Pics' }],
+	entries: [{ name: 'Walls', path: '/home/me/Pics/Walls' }, { name: 'Travel', path: '/home/me/Pics/Travel' }],
+	truncated: false,
+	busy: false,
+	error: null
+};
+const BUSY_VIEW = { path: '', crumbs: [], entries: [], truncated: false, busy: true, error: null };
+const HOME_VIEW = { path: '/home/me', crumbs: [{ name: 'me', path: '/home/me' }], entries: [], truncated: false, busy: false, error: null };
+const UNAVAILABLE_VIEW = { path: '', crumbs: [], entries: [], truncated: false, busy: false, error: 'unavailable' };
+const READ_ERROR_VIEW = { path: '', crumbs: [], entries: [], truncated: false, busy: false, error: 'read' };
+const TRUNCATED_VIEW = { path: '/big', crumbs: [], entries: [{ name: 'a', path: '/big/a' }], truncated: true, busy: false, error: null };
+
+test('w12: the folder picker lists the child folders of where it stands and hands back that folder', () => {
+	const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': BROWSE_VIEW } });
+	page.setState(ADV, {
+		kind: 'url',
+		url: null,
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '', folderCount: null, folderError: null }
+	});
+	const row = page.renderRow(ADV);
+	const panel = findOne(row, (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
+	assert.ok(panel, 'the picker is ONE labelled group, and one click on 新增文件夹 is all it takes to see it');
+	const text = textOf([panel]);
+	for (const key of ['bg2.dirPick', 'bg2.dirUp', 'bg2.dirChoose', 'bg2.dirCancel']) {
+		assert.ok(text.indexOf(key) !== -1, key + ' is in the panel');
+	}
+	assert.ok(text.indexOf('/home/me/Pics') !== -1, 'the panel prints the folder it is standing in');
+	const entries = findAll([panel], (node) => node.tag === 'button' && ['Walls', 'Travel'].indexOf(firstText([node])) !== -1);
+	assert.equal(entries.length, 2, 'both child folders are offered, by name');
+	assert.equal(chipByText([panel], 'bg2.dirUp').props.disabled, false, 'two crumbs deep, so there is a parent to walk up to');
+	assert.equal(chipByText([panel], 'bg2.dirChoose').props.disabled, false, 'and a folder to hand back');
+	// Nothing is typed into the panel: it is a list of buttons, one row per folder.
+	assert.equal(findAll([panel], (node) => node.tag === 'input').length, 0, 'no box to type a path into');
+
+	// A click on a child folder asks the host for ITS listing — the panel turns busy in its own cell.
+	page.clearHookCalls();
+	entries[0].props.onClick();
+	assert.deepEqual(page.hookCalls.map((call) => call.hook), ['FolderPicker#0'], 'the panel owns its own view cell');
+	assert.equal(page.hookCalls[0].value.busy, true, 'and the click shows the loading state while the listing is fetched');
+
+	// Cancel closes the panel and writes ONE cell: the row's open flag. No folder is touched.
+	page.clearHookCalls();
+	chipByText([panel], 'bg2.dirCancel').props.onClick();
+	assert.deepEqual(page.hookCalls, [{ hook: 'WallpaperAdvancedRow#0', value: false }],
+		'取消 only closes the panel — picking a folder is a separate click');
+});
+
+test('w12: the picker names a standstill instead of offering a folder it cannot stand in', () => {
+	// Every state where 「使用此文件夹」 would hand back nothing usable keeps the button disabled, and the
+	// panel says which state it is in rather than printing an empty box.
+	const cases = [
+		['busy', BUSY_VIEW, 'bg2.dirLoading', true],
+		['no child folders', HOME_VIEW, 'bg2.dirEmpty', false],
+		['host cannot browse', UNAVAILABLE_VIEW, 'bg2.dirUnsupported', true],
+		['listing failed', READ_ERROR_VIEW, 'bg2.dirFailed', true]
+	];
+	for (const [label, view, note, disabled] of cases) {
+		const panel = pickerView(view);
+		assert.ok(panel, label + ': the panel renders');
+		const text = textOf([panel]);
+		assert.ok(text.indexOf(note) !== -1, label + ': the panel says ' + note);
+		assert.equal(chipByText([panel], 'bg2.dirChoose').props.disabled, disabled, label + ': 使用此文件夹 is ' + (disabled ? 'disabled' : 'enabled'));
+	}
+	// An error is not the same standstill as an empty folder: only one of the two lines may print.
+	assert.equal(textOf([pickerView(UNAVAILABLE_VIEW)]).indexOf('bg2.dirEmpty'), -1, 'a failed listing is not an empty folder');
+	assert.equal(textOf([pickerView(HOME_VIEW)]).indexOf('bg2.dirFailed'), -1, 'and an empty folder is not a failure');
+	assert.ok(textOf([pickerView(TRUNCATED_VIEW)]).indexOf('bg2.dirTruncated') !== -1, 'a truncated listing says so');
+	assert.equal(chipByText([pickerView(TRUNCATED_VIEW)], 'bg2.dirChoose').props.disabled, false, 'a truncated listing can still be used');
+});
+
+test('w12: the picker is the ONLY folder control — the path is never typed', () => {
+	const panel = pickerView(BROWSE_VIEW);
+	assert.ok(panel, 'the panel is open in this case');
+	const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#0': false } });
+	page.setState(ADV, {
+		kind: 'url',
+		url: null,
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 12, folderError: null }
+	});
+	const row = page.renderRow(ADV);
+	assert.equal(findAll(row, (node) => node.tag === 'input' && (node.props.type === 'text' || node.props.type === undefined)).length, 0,
+		'no text box anywhere in the folder branch');
+	assert.equal(findAll(row, (node) => node.tag === 'textarea').length, 0, 'and no textarea either');
+	assert.ok(chipByText(row, 'bg2.folderAdd'), '新增文件夹 is the way in');
+	assert.ok(chipByText(row, 'bg2.pathRemove'), '删除 is the only operation on a saved folder');
+});
+
+test('mutation: letting 使用此文件夹 fire without a folder reddens the standstill case', () => {
+	const anchor = 'disabled: view.busy || view.path === "" || view.error !== null,';
+	assert.equal(countOf(CODE, anchor), 1, 'the 使用此文件夹 disabled guard must occur exactly once');
+	const mutated = CODE.replace(anchor, 'disabled: false,');
+	assert.notEqual(mutated, CODE, 'mutation ㉖ has to change the bundle');
+	const problems = [BUSY_VIEW, UNAVAILABLE_VIEW, READ_ERROR_VIEW]
+		.filter((view) => chipByText([pickerView(view, { code: mutated })], 'bg2.dirChoose').props.disabled === false);
+	assert.equal(problems.length, 3, 'mutation expected: the three standstills now offer a folder they do not have');
 });
