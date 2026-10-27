@@ -35,9 +35,33 @@
 - **变异 11 条腿逐条实跑并按字节复原**：M1 加第 7 块面板 ⇒ 计数腿红；M2 / M2b 把标准行 / `-webkit-` 孪生行的半径改成 56px ⇒ 天花板腿各自红（**孪生也评**，因为 Safari 画的就是孪生那一行）；M3 删掉低功耗的 `backdrop-filter: none` ⇒ 开关腿红；M4 让低功耗丢掉 `*::after` ⇒ 覆盖腿红；M5 删一条 `-webkit-` 孪生 ⇒ 配对腿红；M6 加一条 CSS `filter: blur()` ⇒ 预算腿红；M7 加第三个 rAF ⇒ 预算腿红；M8 加一处渐变 ⇒ 预算腿红；**M9 把壁纸模糊的低功耗守卫拆掉 ⇒ "行内模糊必须受守卫"那条红**；**M10 加第三处行内模糊 ⇒ 行内计数腿红**。每条都先断言"这次变异真的改了字节"，否则记作无效腿（第一版有 4 条静默空转，被这条断言抓出来重写）。
 - `repo:eol` 全部 LF；严格 `wash:check` 六组全绿。
 
+### 三·补、桌面壳换了一版构建，A1 的通道分叉登记表按壳自己的新字节重推了一遍
+
+发布前跑整套时，`tests/hashes.test.cjs` 的 A1 那条**红了**，而且红得正是它设计时要红的样子：
+
+```
+registry says skeleton/TodoPanel.module.css is drawn as aSus8q_*, re-derived [DXuOLW]
+  — the successor rolled and the excuse is now a stale copy
+```
+
+先归因：**这不是本轮的改动引起的**——在未改动的 HEAD（`a97c8cc`）上单独跑同一个文件，一样红。真正变的是本机那份**官方桌面壳**：`resources/app.asar` 的 mtime 是 **2026-10-23**，它把这三个 CSS module 的类名基名整批重掷了。于是按壳的**新字节**重推导（用 `scripts/lib/desktop-shell.cjs` 的 `moduleClassesInShell()` 现读，不是照抄门的抱怨）：
+
+| module | 旧基名（10.12.1/10.13.0 登记） | 新基名（2026-10-27 重推导） |
+|---|---|---|
+| `skeleton/TodoPanel.module.css` | `aSus8q` | **`DXuOLW`** |
+| `queue/QueueDock.module.css` | `v1kfCW` | **`F07MqG`** |
+| `skeleton/InputBar.module.css` | `RlGAzG` | **`GRgSLq`** |
+
+- `scripts/data/dead-hashes.cjs`：三个 `shellBase` 更新，`measuredAt` 改 2026-10-27，散文里点名的基名同步（`why` 里"同模块画成 …"是给读者的现读值，不是怀旧）。
+- **"无害"那条声明在新基名上复核过**：它在壳上成立的条件是"这条规则的声明块不声明 `background`"——新推导出的 `.GRgSLq_root` 声明块实测是 `padding / flex-direction / align-items / display`，没有 `background`，所以"清掉的是不存在的东西"仍然成立。
+- 两处注释里点名的旧基名（`lib/client.js` 与 `scripts/lib/desktop-shell.cjs`）同轮改正；合成世界夹具（`tests/hashes.test.cjs` 的 `syntheticWorld()`、`tests/host.frosthooks.test.cjs` 的壳假体）跟着换成新基名——它们是"形状与登记表一致"的假世界，登记表变了它们必须跟着变。
+- **npm 那半没有动**：本机宿主仍是 `0.2.0-rc.1`，`lXshSW` / `_7yHdaG` / `uV2eYG` 依旧在场（门里"npm 半边必须真的画着这枚哈希"那条照跑照过）。变的只有壳那一列。
+- 历史条目（本文件 10.12.1/10.13.0 两段、`docs/release-notes.md`）**不动**：它们记录的是当时读到的字节。
+
 ### 四、未验证与边界（照实说）
 
 - **这条审计证明不了 #110。** 它数的是"声明了几块面板"，不是"那台 M4 上此刻合成几块"——后者取决于窗口数、外接屏、驱动与挂了哪些面板。**本机没有 macOS**，所以运行时刻那一半只能靠报告者回填。
+- **并行跑整套时有一条假红（本轮实遇两次，同一腿）**：`tests/client.smoke.test.cjs` 的 "folder rotation: saving a folder reaches the host before the listing is asked…" 在整套并行跑时红过两次（131 ms、217 ms 即失败），而**同文件单跑 187/187 全绿、紧接着重跑整套也全绿**。这不是本轮的改动（该用例走的是本地 HTTP 夹具与去抖落盘），但它是**已知的不稳定点**：判它红之前先单跑该文件。根治（例如把固定的 `sleep(60)` 换成对夹具的等收敛轮询）留给单独一轮，不混进这一轮的语义里。
 - **预算的第一档是"今天的数"**：6 / 40px / 40 / 2 / 0 / 2 都是现测值，改大要在 diff 里写理由。它们不是"经验最优值"，只是"不许悄悄变差"。
 - **"同时活跃 ≤2 层"这个目标没有采纳**：#123 想要的那条是运行时刻属性，静态扫描无法判定它；门里写的是**声明数**并把这个区别挂在输出和文档里，而不是把一条无法判定的判据写成绿。
 - **按皮肤分列也只做到"按面分列"**：8 套皮肤共用同一套规则（差异在 token 值与透明度，不在 blur 规则），所以"逐皮肤 blur 半径表"会得到 8 行相同的数字。表的列是"面"（宿主提问卡 / 待办坞 / 我方模态 / 输入框 / 液态玻璃），不是皮肤。
