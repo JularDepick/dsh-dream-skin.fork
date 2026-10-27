@@ -3156,9 +3156,17 @@ test('issue #55: the sidebar transparency slider is wired end to end', () => {
 	// 4) Upgrade path — a profile that predates BOTH keys (the case the review
 	//    flagged): absence must resolve to the author's shipped look, i.e. the
 	//    SAME numbers the factory seed writes, or the two readers drift again.
+	//    10.28.0 moved that look to "linked at 40%", so this leg asserts the
+	//    INVARIANT (bare == the explicitly seeded shipped values) instead of one
+	//    hardcoded colour, and separately that the link half is load-bearing.
+	const shipped = makeCase({
+		seed: { 'dsh-dream-skin:sidebar-link': '1', 'dsh-dream-skin:sidebar-opacity': '0.4' }
+	});
 	const bare = makeCase({ seed: {} });
-	assert.equal(bare.last().light, 'rgba(246, 233, 239, 0.28)',
-		'missing sidebar keys fall back to the shipped look (0.28, unlinked)');
+	assert.equal(bare.last().light, shipped.last().light,
+		'missing sidebar keys fall back to exactly what the factory seed writes (linked, 0.4)');
+	assert.notEqual(bare.last().light, 'rgba(246, 233, 239, 0.4)',
+		'and NOT to the unlinked token at the same alpha — otherwise the link half is not part of the shipped look');
 
 	// 5) No wallpaper wash at all: the sidebar fill is not overridden, so the
 	//    slider cannot change anything — and it must therefore NOT silently
@@ -7089,9 +7097,9 @@ test('#84: "never touched a slider" and "reset it to the shipped number" are one
 	// row was never opened. They get the same answer either way, because the
 	// number is identical by definition. What survives is the part that matters:
 	// a user whose slider differs from the shipped number is never retuned.
-	const SHIPPED = '0.28'; // SIDEBAR_DEFAULTS.opacity
-	assert.match(CODE, /const SIDEBAR_DEFAULTS = \{ opacity: 0\.28, link: false \}/,
-		'the shipped sidebar default this case reasons about must still be 0.28 in the bundle');
+	const SHIPPED = '0.4'; // SIDEBAR_DEFAULTS.opacity
+	assert.match(CODE, /const SIDEBAR_DEFAULTS = \{ opacity: 0\.4, link: true \}/,
+		'the shipped sidebar default this case reasons about must still be 0.4 / linked in the bundle');
 	const target = String(skinById('midnight').defaults.sidebarOpacity);
 	assert.notEqual(target, SHIPPED, 'the switch target must actually differ from the shipped number, or this proves nothing');
 

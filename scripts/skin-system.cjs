@@ -694,7 +694,7 @@ const SPECS = [
     accentHue: 300,
     accentChroma: 0.150,
     bounceHue: 262,
-    defaults: { wallpaperOpacity: 0.26, wallpaperBlur: 6, sidebarOpacity: 0.30, composerOpacity: 0.46, modalOpacity: 0.92, material: "frosted", autodim: true }
+    defaults: { wallpaperOpacity: 0.40, wallpaperBlur: 5, sidebarOpacity: 0.40, composerOpacity: 0.40, modalOpacity: 0.92, material: "frosted", autodim: true }
   },
   {
     id: "ember",

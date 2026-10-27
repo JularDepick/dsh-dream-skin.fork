@@ -514,6 +514,34 @@ test('the factory seed in the bundle is the number the smoke pin states', () => 
 		'FACTORY_DEFAULTS takes the modal seed from the factory skin');
 });
 
+test('10.28.0: the factory look is the declared numbers, not whatever the skin data happens to say', () => {
+	// The maintainer adopted their own profile as the shipped look (壁纸 60% /
+	// 模糊 5px / 侧栏 60% 跟随 / 输入框 60% / 毛玻璃). The skin block is GENERATED
+	// from scripts/skin-system.cjs, so a later re-tuning of nebula would silently
+	// change what every new install sees. These literals are the declaration;
+	// this leg is what turns that into a red build instead of a silent look change.
+	const SHIPPED_FACTORY = {
+		wallpaperOpacity: 0.4,   // 壁纸透明度 60% (the slider shows 1 - opacity)
+		wallpaperBlur: 5,        // 壁纸模糊 5px
+		sidebarOpacity: 0.4,     // 侧边栏透明度 60%
+		composerOpacity: 0.4,    // 输入框透明度 60%
+		modalOpacity: 0.92       // unchanged: the 0.8 domain floor and the wash floor
+	};
+	const nebula = SKINS.find((s) => s.id === 'nebula');
+	assert.ok(nebula, 'the factory skin must exist');
+	for (const [field, value] of Object.entries(SHIPPED_FACTORY)) {
+		assert.equal(nebula.defaults[field], value, `nebula.defaults.${field} is the declared factory number (10.28.0)`);
+	}
+	assert.equal(nebula.defaults.material, 'frosted', 'the shipped material is 毛玻璃');
+	// The sidebar half lives in a shared table, not in the skin: seed and reader
+	// both come from it, so this literal is the second half of the same look.
+	const bundle = fs.readFileSync(CLIENT, 'utf8');
+	assert.match(bundle, /const SIDEBAR_DEFAULTS = \{ opacity: 0\.4, link: true \}/,
+		'the shipped sidebar look is linked at 40% (10.28.0)');
+	assert.match(bundle, /\[SIDEBAR_OPACITY_KEY\]: String\(SIDEBAR_DEFAULTS\.opacity\)/,
+		'and the factory seed reads that table instead of restating the number');
+});
+
 // ── issue #81: a shipped token must have a reader ──────────────────────────
 
 test('every token the presets ship is justified by a reader on one side or the other', () => {
