@@ -53,12 +53,14 @@ const ZONE_ORDER = ['zone.theme', 'glass.title', 'zone.wallpaper', 'zone.packs']
  * block titles that sit inside those zones. W8 removed the background zone's two block titles: the
  * zone heading is the only title that zone prints, and the advanced row below it is the zone's BODY —
  * so no line inside it is a title line any more (its two sub-folds are, which is a different shape).
+ * W9 dropped the pack library's own block title too: the 「导入与导出」 zone heading is the last
+ * title line the section prints.
  */
 const TITLE_ORDER = [
 	'zone.theme', 'skin.title', 'accent.title',
 	'glass.title',
 	'zone.wallpaper',
-	'zone.packs', 'packs.title'
+	'zone.packs'
 ];
 
 /** How many times `needle` occurs in `hay` — every mutation below asserts this is exactly 1. */
@@ -253,9 +255,9 @@ test('url kind: the link box, the refresh switch, the rotation source and the li
 	// what stays here is the fixed picture's own source pair (link / local file).
 	assert.deepEqual(pressedChips(row), [
 		['bg2.url', true], ['bg2.local', false],
-		['bg2.fillCover', true], ['bg2.fillContain', false], ['bg2.fillBlur', false],
-		['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false]
-	], 'the image-source pair, three fill chips and two rotation-source chips, each mirroring the store');
+		['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
+		['bg2.fillCover', true], ['bg2.fillContain', false], ['bg2.fillBlur', false]
+	], 'the image-source pair, the two rotation-source chips and then the three fill chips — W9 puts the shared blocks after the source controls, each mirroring the store');
 
 	const list = findOne(row, (node) => node.tag === 'textarea');
 	assert.ok(list, 'the link list is a textarea');
@@ -410,7 +412,7 @@ test('mutation: moving one row down the slot order reddens the order baseline', 
 
 	const moved = titleLines(buildSettingsPage({ code: mutated }).renderSection()).map(titleText);
 	assert.deepEqual(moved, ['accent.title', 'glass.title', 'zone.wallpaper',
-		'zone.packs', 'packs.title', 'zone.theme', 'skin.title'],
+		'zone.packs', 'zone.theme', 'skin.title'],
 		'mutation expected: the theme zone is now last, which is exactly what the order case above forbids');
 });
 
@@ -543,13 +545,13 @@ const focusProblems = (skinRow, key) => {
 const ringedCards = (nodes) => findAll(nodes, (node) => node.props && node.props.style
 	&& typeof node.props.style.outline === 'string' && node.props.style.outline.includes('brand-primary'));
 
-test('a11y: all eight sliders carry their label as their name and the printed value as aria-valuetext', () => {
+test('a11y: the five glass sliders and the framing group each carry their label as their name and the printed value as aria-valuetext', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', posX: -20, posY: 30, zoom: 150 });
 	page.setState('dream-skin-glass', { opacity: 0.4, blur: 12, sidebarOpacity: 0.55, composerOpacity: 0.75, modalOpacity: 0.85 });
 	const section = page.renderSection();
 	const sliders = sliderFacts(section);
-	assert.equal(sliders.length, 8, 'the open framing group brings the panel to eight sliders');
+	assert.equal(sliders.length, 8, 'the five glass sliders plus the open framing group, in reading order');
 	assert.deepEqual(sliders.map((slider) => slider.label),
 		['background.opacity', 'background.blur', 'background.sidebarOpacity', 'composer.opacity', 'modal.title',
 			'bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
@@ -823,7 +825,7 @@ test('shared controls: each of the four chip groups announces exactly one presse
 
 test('shared controls: every title line is one shape, and the three help badges are the shared dot', () => {
 	const section = buildSettingsPage({}).renderSection();
-	assert.deepEqual(headingProblems(section), [], 'seven title lines (four zone headings + three block titles), three shared badges');
+	assert.deepEqual(headingProblems(section), [], 'six title lines (four zone headings + two block titles), three shared badges');
 	assert.deepEqual(titleLines(section).map(titleText), TITLE_ORDER,
 		'neither the extraction nor the regroup moved a title line');
 	// The glass heading's badge stopped being a hand-rolled twin in W3: it is the SAME node now, and
@@ -1600,9 +1602,9 @@ test('w6a: the whole section has exactly ONE clear entry, and the action of the 
 
 test('w6a: the recent list shows only the entries the CURRENT form can paint', () => {
 	const page = buildSettingsPage({ seed: { 'dsh-dream-skin:wallpaper-history': JSON.stringify(HISTORY_ENTRIES) } });
-	assert.deepEqual(historyProblems(page), [], 'four buckets, one strip: each form sees its own entries and only those');
+	assert.deepEqual(historyProblems(page), [], 'four buckets, one strip under the selector: each form sees its own entries and only those');
 
-	// ONE strip, not one per form: whatever the form, the wording prints once.
+	// ONE strip, not one per form: it sits under the form selector, so whatever the form, the wording prints once.
 	for (const row of HISTORY_TABLE) {
 		page.setState(ADV, row.patch);
 		const rendered = page.renderRow(ADV);
@@ -1859,9 +1861,9 @@ test('w6b: 轮播设置 is its own fold, and the pool editor stays outside it', 
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 6, rotation: Object.assign({}, ROTATION, { on: true }) });
 	const row = page.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(row, ['bg2.frame', 'bg2.rotationSettings']), [],
-		'轮播图片: 位置与缩放 and 轮播设置 are two folds, in reading order');
-	const body = foldBody(foldTogglesOf(row)[1]);
+	assert.deepEqual(subFoldProblems(row, ['bg2.rotationSettings', 'bg2.frame']), [],
+		'轮播图片: 轮播设置 and 位置与缩放 are two folds, in reading order — the pool editor comes first');
+	const body = foldBody(foldTogglesOf(row)[0]);
 	const boxes = body === null ? [] : numberInputs([body]);
 	assert.equal(boxes.length, 1, 'the interval box is inside 轮播设置');
 	assert.deepEqual([boxes.length === 0 ? null : boxes[0].props.min, boxes.length === 0 ? null : boxes[0].props.max], [5, 10080],
@@ -1905,14 +1907,14 @@ test('mutation: dropping the shared aria-expanded reddens BOTH sub-block folds',
 	const both = Object.assign({}, ROTATION, { on: true });
 	const control = buildSettingsPage({});
 	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: both });
-	assert.deepEqual(subFoldProblems(control.renderRow(ADV), ['bg2.frame', 'bg2.rotationSettings']), [],
+	assert.deepEqual(subFoldProblems(control.renderRow(ADV), ['bg2.rotationSettings', 'bg2.frame']), [],
 		'control: the shipped folds announce their state');
 
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: both });
-	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.frame', 'bg2.rotationSettings']), [
-		'bg2.frame: the fold does not announce its state (aria-expanded is undefined)',
-		'bg2.rotationSettings: the fold does not announce its state (aria-expanded is undefined)'
+	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.rotationSettings', 'bg2.frame']), [
+		'bg2.rotationSettings: the fold does not announce its state (aria-expanded is undefined)',
+		'bg2.frame: the fold does not announce its state (aria-expanded is undefined)'
 	], 'mutation expected: the SHARED toggle goes silent, so the failure names every sub-block that rides on it');
 });
 
@@ -2146,13 +2148,17 @@ test('w7a: the four import/export entries live in the zone above the library, an
 	assert.equal(new Set(entries.map((node) => node.parent)).size, 1,
 		'they are ONE row of entries, not actions scattered through the library');
 
-	// The zone's entries come BEFORE the library block: the grid is theme SELECTION only.
+	// The zone's entries come BEFORE the library grid: the grid is theme SELECTION only.
 	const group = row[0];
 	const entriesAt = group.children.indexOf(entries[0].parent);
-	const libraryAt = group.children.findIndex((child) => isTitleLine(child) && titleText(child) === 'packs.title');
-	assert.ok(entriesAt !== -1 && libraryAt !== -1, 'both the entry row and the library title are direct children of the block');
-	assert.ok(entriesAt < libraryAt,
+	const gridAt = group.children.findIndex((child) => child.tag === 'div' && findAll([child], (node) => node.props.role === 'group').length > 0);
+	assert.ok(entriesAt !== -1 && gridAt !== -1, 'both the entry row and the library grid are direct children of the block');
+	assert.ok(entriesAt < gridAt,
 		'the entries belong to the 「导入与导出」 zone heading, so 随机换一个 is not an action sitting inside the pack library');
+	// W9: the library no longer prints a block title of its own — the zone heading is the only
+	// title the 导入与导出 zone carries, exactly like the background zone after W8.
+	assert.equal(findAll(row, (node) => isTitleLine(node) && titleText(node) === 'packs.title').length, 0,
+		'the library block title is gone: the zone heading names the whole zone');
 
 	// 随机换一个 stays a SINGLE click: one press, one action call, no confirmation step.
 	buttonByKey(row, 'packs.surprise').props.onClick();
