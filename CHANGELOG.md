@@ -53,10 +53,12 @@ registry says skeleton/TodoPanel.module.css is drawn as aSus8q_*, re-derived [DX
 | `skeleton/InputBar.module.css` | `RlGAzG` | **`GRgSLq`** |
 
 - `scripts/data/dead-hashes.cjs`：三个 `shellBase` 更新，`measuredAt` 改 2026-10-27，散文里点名的基名同步（`why` 里"同模块画成 …"是给读者的现读值，不是怀旧）。
-- **"无害"那条声明在新基名上复核过**：它在壳上成立的条件是"这条规则的声明块不声明 `background`"——新推导出的 `.GRgSLq_root` 声明块实测是 `padding / flex-direction / align-items / display`，没有 `background`，所以"清掉的是不存在的东西"仍然成立。
+- **"无害"那条声明在新基名上复核过**：它在壳上成立的条件是"这条规则的声明块不声明 `background`"——新推导出的 `GRgSLq_*`（写通配形式而不是具体后缀，见本节末那条）声明块实测是 `padding / flex-direction / align-items / display`，没有 `background`，所以"清掉的是不存在的东西"仍然成立。
 - 两处注释里点名的旧基名（`lib/client.js` 与 `scripts/lib/desktop-shell.cjs`）同轮改正；合成世界夹具（`tests/hashes.test.cjs` 的 `syntheticWorld()`、`tests/host.frosthooks.test.cjs` 的壳假体）跟着换成新基名——它们是"形状与登记表一致"的假世界，登记表变了它们必须跟着变。
 - **npm 那半没有动**：本机宿主仍是 `0.2.0-rc.1`，`lXshSW` / `_7yHdaG` / `uV2eYG` 依旧在场（门里"npm 半边必须真的画着这枚哈希"那条照跑照过）。变的只有壳那一列。
 - 历史条目（本文件 10.12.1/10.13.0 两段、`docs/release-notes.md`）**不动**：它们记录的是当时读到的字节。
+- **本节里的类名一律写 `_*` 形式，不写具体后缀——这不是排版习惯，是一个门逼出来的写法**：`CHANGELOG.md` **也是** `#92` 哈希字面量扫描的目标，而那份冻结语料（`scripts/data/host-token-census.json`）只含 **npm 侧**（CI 上没有官方壳可以读）。写成「基名 + 下划线 + **具体后缀**」这种 token，等于让仓库在正文里断言一枚 CI 语料里查不到的类名，门会当场红（本轮就红了一次，CI 与本地同时；本段自己第一稿也这么写了，被同一个门当场抓出来，改成现在这句）。历史的 10.12.1/10.13.0 两段当初正是用 `_*` 形式避开的，此处沿用它的形状而不是发明新写法。
+
 
 ### 四、未验证与边界（照实说）
 
