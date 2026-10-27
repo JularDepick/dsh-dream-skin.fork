@@ -30,6 +30,18 @@
 
 - **没有在活页上目视过这个菜单**：本机两条服务（web 3080 / 壳 19387）当时都没在跑，且本机宿主是 **0.2.0-rc.1，没有这个挂载点**（规则在它上面按设计不命中）。证据是：宿主字节（两版对照）+ 出厂样式表的规则 + 门的五条变异腿。报告者的 0.2.1-rc.3 上是否就此可读，需要他升级后回填一句。
 - 规则是 `[data-composer-overlay] > *`（槽位的**所有**直接子元素都会拿到这块面）。今天那个槽位只放触发菜单；若宿主以后往里放别的东西，它们也会被上色——这条边界写在代码注释里。
+
+### 五、发布读数（10.28.1）
+
+- **提交与 tag**：代码 `b04dc0d`；tag `v10.28.1` → `b04dc0d`（本轮 main 与 tag 同一个点，没有 10.28.0 那种"tag 先推、main 被抢先"的收口动作）。
+- **CI run `40549305976` 六作业全绿**：`test (18/20/22)` 三份各 `# tests 631 / # pass 595 / # fail 0 / # skipped 36`；`test (24)` 跑的是"Syntax check the host + client bundles"（不是套件），与 `typecheck` / `Computed-style gate` / `finite-caller-set` 一样只记结论 `success`。CI 形态比本机多跳过 34 条（宿主与浏览器夹具在场与否的差别），本机形态是 `631 / 629 pass / 0 fail / 2 skipped`。
+- **Plugin Security Scan run `40549307161`、Release run `40549316805` 均 success**（Release 正文 = 本条 10.28.1 条目）。
+- **npm**：`+ dsh-dream-skin@10.28.1`；packument `time` 戳 **`2026-10-27T17:24:26.457Z`**；`dist.shasum` **`0192f70b9d395ee96aa25caa36c74a611ad8df7c`**，与本地 `npm pack` 那份（203,552 字节 / 14 文件）逐位相同。
+- **读侧延迟第十二次实遇**，这次多记一条形状：时间戳落库之后，`npm view dsh-dream-skin@10.28.1`（`--prefer-online` + 全新缓存目录）仍报 `E404`，而**同一分钟**直接读 `https://registry.npmjs.org/dsh-dream-skin` 已经能看到 10.28.1 与它的 `time`；十几秒后 npm 侧也恢复。判据不变：**看 packument 的 `time`，不拿一次 `view` / `install` 的 404 当发布失败**；要最快确认，用 `curl` 直读 registry 而不是经 npm CLI。
+- **从 registry 真装一次**（发布清单 B6）：临时目录里 `npm install dsh-dream-skin@10.28.1` ⇒ **14 个文件、版本 10.28.1，逐个与工作树逐字节相同（0 处不一致）**；`lib/client.js` 527,439 字节、`lib/index.js` 26,703、`README.md` 49,556、`package.json` 3,915、`locale/en.json` 218、`locale/zh.json` 197、`icon.svg` 1,905。
+- **把宿主函数指向那份安装物读了一次**：`readPluginMeta("dsh-dream-skin", <安装目录>)` ⇒ 两语 title / 两语 description / 2,566 字符 icon data URL 全在。
+- **仍未验证的那一眼**：本机宿主是 0.2.0-rc.1，没有 `[data-composer-overlay]` 挂载点，所以这条修复**没有在活页上目视过**；报告者的 0.2.1-rc.3 上是否就此可读，等他回填（#124 保持打开）。
+
 ## [10.28.0] - 2026-10-28
 
 > **出厂外观换成维护者自己那套参数 —— 新装用户第一次打开看到的就是它。** 触发方式很直接：维护者截图说"把我本机 DeepSeek Harness Desktop 的这组设置作为默认"。落地前先做了三件事：**从数据里读**（不是从截图抄）、**逐项对域与既有裁决**、**问清两个真分叉**（弹窗低于 0.8 要不要撤回 #67；只改出厂还是 8 套皮肤一起扁平化）。合计 **229 项质量门全过**（217 调色 + 12 工艺），全套 `npm test` 627→**628 全绿**。

@@ -1,0 +1,82 @@
+name: 性能报告
+description: 卡顿 / 掉帧 / GPU 占用高 / 风扇狂转
+title: "[perf] "
+labels: ["performance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这张表是为"壁纸 / 毛玻璃在运行时到底贵不贵"准备的（#110）。插件侧能静态测量的部分由仓库自己跑
+        （`npm run compositor:audit`），**只有你机器上的体感与 GPU 读数能补上另一半**。
+
+        填之前请做两件事：
+        1. 先**关掉**低功耗开关用 1 分钟，再**打开**用 1 分钟——两个状态各填一行体感；
+        2. 不需要截图或录屏，文本足以定位问题。
+  - type: dropdown
+    id: machine
+    attributes:
+      label: 机型 / GPU 类型
+      options:
+        - Apple Silicon（M1 / M2 / M3 / M4）
+        - Intel 核显
+        - AMD 独显或核显
+        - NVIDIA 独显
+        - 其他（请在补充里写明）
+    validations:
+      required: true
+  - type: input
+    id: dsh-version
+    attributes:
+      label: DSH 版本与插件版本
+      description: "`dsh --version` 的输出，以及在插件列表里看到的 dsh-dream-skin 版本号"
+      placeholder: "dsh 0.2.0-rc.1 / dsh-dream-skin 10.28.1"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: 窗口数与外接屏数
+      description: 例如"1 个窗口 + 1 块外接屏"、"2 个窗口 + 0 外接屏"
+      placeholder: "1 窗口 / 0 外接屏"
+    validations:
+      required: true
+  - type: input
+    id: look
+    attributes:
+      label: 当前皮肤、壁纸类型与材质
+      description: 皮肤名 + 壁纸是弥散光 / 图片链接 / 本地文件夹 / 无，材质是毛玻璃还是水洗
+      placeholder: "nebula / 本地文件夹 / 毛玻璃"
+  - type: dropdown
+    id: lowpower-off
+    attributes:
+      label: 低功耗开关「关」时
+      options:
+        - 明显卡顿或掉帧
+        - 轻微卡，但能用
+        - 正常，没有察觉
+    validations:
+      required: true
+  - type: dropdown
+    id: lowpower-on
+    attributes:
+      label: 低功耗开关「开」时
+      options:
+        - 仍然明显卡顿或掉帧
+        - 明显改善，但还不够
+        - 完全正常
+        - 这个是空的 / 我找不到这个开关
+    validations:
+      required: true
+  - type: textarea
+    id: gpu
+    attributes:
+      label: chrome://gpu 的 Compositing 段
+      description: 打开 `chrome://gpu`，找到 "Compositing" 这一段，整段粘贴过来（它决定问题出在软件合成还是硬件合成上）
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充
+      description: 可选：什么时候最明显（滚动 / 切会话 / 打开弹窗 / 长时间挂着）、显示器缩放、以及其他你注意到的现象
