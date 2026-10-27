@@ -50,13 +50,14 @@ const ZONE_ORDER = ['zone.theme', 'glass.title', 'zone.wallpaper', 'zone.packs']
 
 /**
  * Every title line the section prints, in reading order: the four zone headings interleaved with the
- * block titles that sit inside those zones. `bg2.title` is the advanced block's FOLD TOGGLE, so its
- * title line is a button; the rest are a zone <h3> or a block title div.
+ * block titles that sit inside those zones. W8 removed the background zone's two block titles: the
+ * zone heading is the only title that zone prints, and the advanced row below it is the zone's BODY —
+ * so no line inside it is a title line any more (its two sub-folds are, which is a different shape).
  */
 const TITLE_ORDER = [
 	'zone.theme', 'skin.title', 'accent.title',
 	'glass.title',
-	'zone.wallpaper', 'background.title', 'bg2.title',
+	'zone.wallpaper',
 	'zone.packs', 'packs.title'
 ];
 
@@ -159,8 +160,8 @@ test('the section renders one group per row, in slot order, and the thin modal r
 	assert.equal(section[0].tag, 'div', 'the wrapper is a plain div');
 	const groups = groupRoots(section);
 	assert.equal(groups.length, 6, 'six rows produce a group; dream-skin-modal-opacity is a thin registration that renders null');
-	assert.deepEqual(groupOpeners(section), ['zone.theme', 'accent.title', 'glass.title', 'zone.wallpaper', 'bg2.title', 'zone.packs'],
-		'the group order IS the slot order — W5 regrouped it into zones, and a later round moves it only on purpose');
+	assert.deepEqual(groupOpeners(section), ['zone.theme', 'accent.title', 'glass.title', 'zone.wallpaper', null, 'zone.packs'],
+		'the group order IS the slot order — W5 regrouped it into zones, and W8 made the background zone ONE body (hence the null opener)');
 	for (const group of groups) assert.equal(group.tag, 'div', 'every group is a div, not a fragment or a bare control');
 
 	// The thin row is what makes "7 registrations, 6 groups" honest rather than an arithmetic accident.
@@ -192,8 +193,8 @@ test('the default panel carries one control family per group, and only the glass
 	assert.deepEqual(inputTypes(page.renderRow('dream-skin-glass')),
 		['range', 'range', 'checkbox', 'range', 'checkbox', 'range', 'checkbox', 'range', 'checkbox'],
 		'the glass group owns all five sliders and four of the five switches, one gate per slider');
-	assert.deepEqual(inputTypes(page.renderRow(ADV)), ['checkbox'],
-		'with no picture set the advanced row shows only its auto-dim switch — framing is gated on a picture');
+	assert.deepEqual(inputTypes(page.renderRow(ADV)), ['file', 'checkbox'],
+		'W8: with 背景形式=固定图片 the row offers the local picker even before a picture is chosen, plus its auto-dim switch — framing still waits for a picture');
 	for (const id of ['dream-skin', 'dream-skin-accent', 'dream-skin-wallpaper', 'dream-skin-packs']) {
 		assert.deepEqual(rangeInputs(page.renderRow(id)), [], id + ' must stay slider-free on a default panel');
 	}
@@ -408,7 +409,7 @@ test('mutation: moving one row down the slot order reddens the order baseline', 
 	assert.deepEqual(control, TITLE_ORDER, 'control: the unmutated bundle renders the documented order');
 
 	const moved = titleLines(buildSettingsPage({ code: mutated }).renderSection()).map(titleText);
-	assert.deepEqual(moved, ['accent.title', 'glass.title', 'zone.wallpaper', 'background.title', 'bg2.title',
+	assert.deepEqual(moved, ['accent.title', 'glass.title', 'zone.wallpaper',
 		'zone.packs', 'packs.title', 'zone.theme', 'skin.title'],
 		'mutation expected: the theme zone is now last, which is exactly what the order case above forbids');
 });
@@ -774,7 +775,7 @@ const badgeFacts = (node) => findAll([node], (child) => child !== node && child.
 	}));
 
 /** Which title line carries which explanation (the three that document one). */
-const HEADING_HELP = { 'accent.title': 'accent.hint', 'background.title': 'background.hint', 'glass.title': 'glass.help' };
+const HEADING_HELP = { 'accent.title': 'accent.hint', 'glass.title': 'glass.help', 'zone.wallpaper': 'background.hint' };
 
 /** Everything wrong with the section's title lines — empty once each is one line carrying its badge. */
 const headingProblems = (section) => {
@@ -822,7 +823,7 @@ test('shared controls: each of the four chip groups announces exactly one presse
 
 test('shared controls: every title line is one shape, and the three help badges are the shared dot', () => {
 	const section = buildSettingsPage({}).renderSection();
-	assert.deepEqual(headingProblems(section), [], 'nine title lines (four zone headings + five block titles), three shared badges');
+	assert.deepEqual(headingProblems(section), [], 'seven title lines (four zone headings + three block titles), three shared badges');
 	assert.deepEqual(titleLines(section).map(titleText), TITLE_ORDER,
 		'neither the extraction nor the regroup moved a title line');
 	// The glass heading's badge stopped being a hand-rolled twin in W3: it is the SAME node now, and
@@ -1218,33 +1219,21 @@ const dividerProblems = (section) => {
 	return problems;
 };
 
-/** The fold toggles: the buttons whose text is the advanced block's title. */
-const foldToggles = (nodes) => findAll(nodes, (node) => node.tag === 'button' && titleText(node) === 'bg2.title');
+/**
+ * A title line that is NOT a fold toggle: the shapes a BLOCK title takes. W8 deleted the two block
+ * titles the background zone used to print, so this is the shape that must now be absent from the
+ * zone's body — while the two sub-folds below still are title lines of their own kind.
+ */
+const isBlockTitle = (node) => isTitleLine(node) && !(node.tag === 'button' && 'aria-expanded' in node.props);
 
-/** Everything wrong with a fold — empty when the toggle announces its state and the body follows it. */
-const foldProblems = (row) => {
-	const toggles = foldToggles(row);
-	if (toggles.length !== 1) {
-		return ['expected exactly one fold toggle (a button whose text is "bg2.title"), rendered ' + toggles.length];
-	}
-	const problems = [];
-	const toggle = toggles[0];
-	const expanded = toggle.props['aria-expanded'];
-	if (typeof expanded !== 'boolean') {
-		problems.push('bg2.title: the fold toggle does not announce its state (aria-expanded is ' + JSON.stringify(expanded) + ')');
-	}
-	// The announced state and the mounted body are ONE fact read twice: a body that is mounted
-	// while the toggle says "closed" is content the user was told is gone.
-	const bodyMounted = toggle.parent !== null && toggle.parent.children.length === 2;
-	if (typeof expanded === 'boolean' && expanded !== bodyMounted) {
-		problems.push('bg2.title: the toggle says aria-expanded=' + expanded + ' while the body is '
-			+ (bodyMounted ? 'mounted' : 'not mounted'));
-	}
-	const caret = toggle.children[0];
-	if (caret === undefined || caret.props['aria-hidden'] !== true) {
-		problems.push('bg2.title: the caret is not aria-hidden, so it is read out as part of the name');
-	}
-	return problems;
+/**
+ * Everything wrong with the background zone's body: empty when it prints no title line of its own.
+ * The zone heading above it already names it, so a second title here is the 「背景图片 / 高级壁纸」
+ * duplication the user reported, not a structure.
+ */
+const bodyTitleProblems = (row) => {
+	const titles = findAll(row, isBlockTitle).map(titleText);
+	return titles.length === 0 ? [] : ['the zone body prints ' + titles.length + ' title line(s) (' + titles.join(', ') + '), expected none'];
 };
 
 test('zones: the four zones read in design order, each opens on an <h3>, and no title prints twice', () => {
@@ -1255,11 +1244,17 @@ test('zones: the four zones read in design order, each opens on an <h3>, and no 
 	assert.deepEqual(titleLines(section).map(titleText), TITLE_ORDER,
 		'and the block titles sit inside their zones, in the order a reader meets them');
 	// Every zone heading opens its group, i.e. nothing but the zone title sits above the first block.
-	for (const group of groupRoots(section)) {
+	// W8: the background zone's BODY is the one group that opens on no title line at all — the zone
+	// heading above it already named it, which is exactly the duplicate that was removed.
+	const openers = groupRoots(section).map((group) => {
 		const opener = findOne([group], isTitleLine);
-		assert.ok(opener, 'every group opens with a title line');
-		assert.equal(opener.parent, group, 'the title line is the group\'s own first heading, not a nested block\'s');
-	}
+		if (opener !== null) {
+			assert.equal(opener.parent, group, 'the title line is the group\'s own first heading, not a nested block\'s');
+		}
+		return opener;
+	});
+	assert.equal(openers.filter((node) => node === null).length, 1,
+		'exactly one group opens on no title line — the background zone\'s body');
 	// A zone must never be a bare <h3> with no block: the two are one thing in the glass case.
 	assert.equal(findAll(section, (node) => node.tag === 'h3').length, ZONE_ORDER.length,
 		'exactly four h3 elements — no block title was promoted by accident');
@@ -1276,19 +1271,27 @@ test('zones: exactly one rule between two zones — none above the first, none a
 		'the section ends on the last zone, whose rule can only ever be ABOVE it — there is no trailing line');
 });
 
-test('fold: the advanced block collapses through one toggle that announces its state', () => {
+test('fold: the background zone has NO block fold — its body is open, and only the asides fold', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	const open = page.renderRow(ADV);
-	assert.deepEqual(foldProblems(open), [], 'open: the toggle announces it and the body is mounted');
-	const toggle = foldToggles(open)[0];
-	assert.equal(titleText(toggle), 'bg2.title', 'the toggle IS the block title line');
-	const body = toggle.parent.children[1];
-	assert.ok(findOne([body], (node) => node.tag === 'input' && node.props.type === 'url'),
-		'the link box lives INSIDE the fold body, so folding it really hides it');
+	const row = page.renderRow(ADV);
+	assert.deepEqual(bodyTitleProblems(row), [],
+		'W8: the zone body prints no title line — 背景形式 opens it directly instead of a block heading');
+	// The controls the block used to hide behind a toggle are mounted, unconditionally: there is no
+	// collapse between the zone heading and its controls any more.
+	const linkBox = findOne(row, (node) => node.tag === 'input' && node.props.type === 'url');
+	assert.ok(linkBox, 'the link box is in the body itself, not behind a fold');
+	const bodies = foldTogglesOf(row).map(foldBody).filter((node) => node !== null);
+	const ancestors = [];
+	for (let node = linkBox.parent; node !== null; node = node.parent) ancestors.push(node);
+	assert.equal(ancestors.filter((node) => bodies.indexOf(node) !== -1).length, 0,
+		'and nothing above it is a fold body — there is no collapse between the zone heading and this box');
 
-	// The handler drives the state; the hook cell it writes is the Foldable component's own, which
-	// is what makes two folds in one row impossible (the W5 note on the component).
+	// The fold that DOES remain is the aside below it, and its toggle still announces its state.
+	const folds = foldTogglesOf(row);
+	assert.deepEqual(folds.map(titleText), ['bg2.frame'], 'one aside folds on a fixed picture: 位置与缩放');
+	const toggle = folds[0];
+	assert.equal(toggle.props['aria-expanded'], true, 'the aside starts open, and says so');
 	page.clearHookCalls();
 	toggle.props.onClick();
 	const hookKey = page.hookCalls[0] && page.hookCalls[0].hook;
@@ -1296,17 +1299,13 @@ test('fold: the advanced block collapses through one toggle that announces its s
 	assert.equal(page.hookCalls.length, 1, 'one click, one state write');
 	assert.equal(page.hookCalls[0].value, false, 'the click asks for the closed state');
 
-	// The state drives the DOM: a page whose cell starts closed renders the toggle and NOTHING else.
+	// Closed, the aside mounts nothing — and the body's own controls are untouched by that.
 	const closed = buildSettingsPage({ hookInitials: { [hookKey]: false } });
 	closed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
 	const folded = closed.renderRow(ADV);
-	assert.deepEqual(foldProblems(folded), [], 'closed: the toggle still announces its state, and the body is gone');
-	const closedToggle = foldToggles(folded)[0];
-	assert.equal(closedToggle.props['aria-expanded'], false, 'closed: the toggle says so');
-	assert.equal(closedToggle.parent.children.length, 1,
-		'closed: nothing is MOUNTED under the toggle, so hidden content is unreachable rather than clipped');
-	assert.equal(findOne(folded, (node) => node.tag === 'input' && node.props.type === 'url'), null,
-		'closed: the link box is gone, not merely scrolled out of view');
+	assert.equal(foldBody(foldTogglesOf(folded)[0]), null, 'closed: the aside mounts nothing');
+	assert.ok(findOne(folded, (node) => node.tag === 'input' && node.props.type === 'url'),
+		'closed: the link box is STILL there — the aside is not what was hiding it');
 });
 
 test('mutation: demoting one zone heading reddens the zone case', () => {
@@ -1333,12 +1332,12 @@ test('mutation: drawing the rule on every block reddens the divider case', () =>
 	assert.deepEqual(problems, [
 		'zone.theme: the first zone draws a rule above itself — there is nothing to separate it from',
 		'accent.title: a block inside a zone draws a rule — blocks are separated by spacing only',
-		'bg2.title: a block inside a zone draws a rule — blocks are separated by spacing only',
+		'group #4: a block inside a zone draws a rule — blocks are separated by spacing only',
 		'6 rules for 4 zones — every zone but the first needs one, and only one'
 	], 'mutation expected: every block drew one, so blocks and zones read alike again — the exact failure the marker was introduced to end');
 });
 
-test('mutation: dropping aria-expanded reddens the fold case', () => {
+test('mutation: an aside that stops announcing its state reddens the fold case', () => {
 	const anchor = '\n\t\t\t\t\t\t"aria-expanded": open,';
 	assert.equal(countOf(CODE, anchor), 1, 'the fold toggle aria anchor must occur exactly once');
 	const mutated = CODE.replace(anchor, '');
@@ -1346,13 +1345,13 @@ test('mutation: dropping aria-expanded reddens the fold case', () => {
 
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(foldProblems(page.renderRow(ADV)), [], 'control: the shipped toggle announces its state');
+	assert.deepEqual(subFoldProblems(page.renderRow(ADV), ['bg2.frame']), [], 'control: the shipped aside announces its state');
 
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(foldProblems(broken.renderRow(ADV)),
-		['bg2.title: the fold toggle does not announce its state (aria-expanded is undefined)'],
-		'mutation expected: the fold still opens and closes, but a screen reader can no longer hear which');
+	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.frame']),
+		['bg2.frame: the fold does not announce its state (aria-expanded is undefined)'],
+		'mutation expected: the aside still opens and closes, but a screen reader can no longer hear which');
 });
 
 // ---------------------------------------------------------------------------
@@ -1589,8 +1588,11 @@ test('w6a: the whole section has exactly ONE clear entry, and the action of the 
 	// different outcome (it left url / gradient / kind behind), which is exactly why
 	// two buttons that both read "remove the picture" had to become one.
 	const wallpaperRow = page.renderRow('dream-skin-wallpaper');
-	assert.deepEqual(findAll(wallpaperRow, (node) => node.tag === 'button').map((node) => firstText([node])),
-		['background.choose'], 'the image row offers its file picker and nothing else');
+	assert.deepEqual(findAll(wallpaperRow, (node) => node.tag === 'button').map((node) => firstText([node])), [],
+		'W8: the zone row prints its heading and nothing else — the picker moved into the body below it');
+	page.setState(ADV, { kind: 'image', url: null });
+	assert.equal(findAll(page.renderRow(ADV), (node) => node.tag === 'button' && firstText([node]) === 'background.choose').length, 1,
+		'and the ONE local picker sits in the 固定图片 → 本地图片 branch');
 	const bag = page.actionsOf('dream-skin-wallpaper');
 	assert.equal(typeof bag.setWallpaper, 'function', 'the action the second entry called is still on the bag');
 	assert.equal(typeof bag.clearWallpaper, 'function', 'and so is the one the surviving button uses');
@@ -1692,12 +1694,12 @@ test('mutation: putting the second clear entry back reddens the single-clear cas
 	assert.notEqual(mutated, CODE, 'mutation ⑯ has to change the bundle');
 
 	const control = buildSettingsPage({});
-	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	control.setState(ADV, { kind: 'image', hasImage: true, url: 'data:image/png;base64,QUJD' });
 	control.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
 	assert.deepEqual(clearProblems(control.renderSection()), [], 'control: one clear entry on the shipped panel');
 
 	const broken = buildSettingsPage({ code: mutated });
-	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	broken.setState(ADV, { kind: 'image', hasImage: true, url: 'data:image/png;base64,QUJD' });
 	broken.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
 	const problems = clearProblems(broken.renderSection());
 	assert.equal(problems.length, 1, 'mutation expected: two clear entries again, got: ' + JSON.stringify(problems));
@@ -1830,15 +1832,15 @@ test('w6b: the framing sub-block is its own fold, open by default and mounted in
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
 	const row = page.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(row, ['bg2.title', 'bg2.frame']), [],
-		'fixed picture: the block and its 位置与缩放 sub-block are two folds, in reading order');
-	const frame = foldTogglesOf(row)[1];
+	assert.deepEqual(subFoldProblems(row, ['bg2.frame']), [],
+		'fixed picture: 位置与缩放 is the row\'s only fold now — W8 removed the block fold above it');
+	const frame = foldTogglesOf(row)[0];
 	const body = foldBody(frame);
 	assert.deepEqual(body === null ? [] : rangeInputs([body]).map((node) => firstText([node.parent.children[0]])),
 		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
 		'the three framing sliders are INSIDE the fold, so folding really hides them');
 
-	// The click writes the fold's OWN cell — that is what makes two folds in one row two switches.
+	// The click writes the fold's OWN cell — the row itself owns none, so a re-render cannot shift it.
 	page.clearHookCalls();
 	frame.props.onClick();
 	assert.deepEqual(page.hookCalls.map((call) => call.value), [false], 'the framing toggle asks for the closed state');
@@ -1847,19 +1849,19 @@ test('w6b: the framing sub-block is its own fold, open by default and mounted in
 	const closed = buildSettingsPage({ hookInitials: { 'Foldable#0': false } });
 	closed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
 	const folded = closed.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(folded, ['bg2.title'], false), [],
-		'closed: the outer fold says so and mounts nothing, which is why the inner one is gone with it');
+	assert.deepEqual(subFoldProblems(folded, ['bg2.frame'], false), [],
+		'closed: the sub-fold says so and mounts nothing');
 	assert.deepEqual(rangeInputs(folded), [], 'closed: the framing controls are unmounted, not merely clipped');
-	assert.equal(chipByText(folded, 'bg2.fillCover'), null, 'closed: so is the fill choice in the block body');
+	assert.ok(chipByText(folded, 'bg2.fillCover'), 'closed: the fill choice STAYS — 填充方式 is the row\'s, not the aside\'s');
 });
 
 test('w6b: 轮播设置 is its own fold, and the pool editor stays outside it', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 6, rotation: Object.assign({}, ROTATION, { on: true }) });
 	const row = page.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(row, ['bg2.title', 'bg2.frame', 'bg2.rotationSettings']), [],
-		'轮播图片: the block, 位置与缩放 and 轮播设置 are three folds, in reading order');
-	const body = foldBody(foldTogglesOf(row)[2]);
+	assert.deepEqual(subFoldProblems(row, ['bg2.frame', 'bg2.rotationSettings']), [],
+		'轮播图片: 位置与缩放 and 轮播设置 are two folds, in reading order');
+	const body = foldBody(foldTogglesOf(row)[1]);
 	const boxes = body === null ? [] : numberInputs([body]);
 	assert.equal(boxes.length, 1, 'the interval box is inside 轮播设置');
 	assert.deepEqual([boxes.length === 0 ? null : boxes[0].props.min, boxes.length === 0 ? null : boxes[0].props.max], [5, 10080],
@@ -1900,16 +1902,17 @@ test('mutation: dropping the shared aria-expanded reddens BOTH sub-block folds',
 	const mutated = CODE.replace(anchor, '');
 	assert.notEqual(mutated, CODE, 'mutation ⑱ has to change the bundle');
 
+	const both = Object.assign({}, ROTATION, { on: true });
 	const control = buildSettingsPage({});
-	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(subFoldProblems(control.renderRow(ADV), ['bg2.title', 'bg2.frame']), [],
+	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: both });
+	assert.deepEqual(subFoldProblems(control.renderRow(ADV), ['bg2.frame', 'bg2.rotationSettings']), [],
 		'control: the shipped folds announce their state');
 
 	const broken = buildSettingsPage({ code: mutated });
-	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.title', 'bg2.frame']), [
-		'bg2.title: the fold does not announce its state (aria-expanded is undefined)',
-		'bg2.frame: the fold does not announce its state (aria-expanded is undefined)'
+	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: both });
+	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.frame', 'bg2.rotationSettings']), [
+		'bg2.frame: the fold does not announce its state (aria-expanded is undefined)',
+		'bg2.rotationSettings: the fold does not announce its state (aria-expanded is undefined)'
 	], 'mutation expected: the SHARED toggle goes silent, so the failure names every sub-block that rides on it');
 });
 
@@ -1933,9 +1936,8 @@ test('mutation: a fold that starts closed reddens the default-state case', () =>
 
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.title', 'bg2.frame']), [
-		'the row folds [bg2.title], expected [bg2.title, bg2.frame]',
-		'bg2.title: starts closed, but the fold has no persisted state'
+	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.frame']), [
+		'bg2.frame: starts closed, but the fold has no persisted state'
 	], 'mutation expected: a reload comes back collapsed — the open state is a view affordance, never persisted');
 });
 
@@ -2282,8 +2284,8 @@ test('w7b: the hook-owning helpers own their cells, not the row that renders the
 	const withFrame = page.hookKeys;
 	assert.equal(withFrame.filter((key) => key === 'Slider#0').length, 3,
 		'the three framing sliders each own the cell useCompactLayout reads');
-	assert.equal(withFrame.filter((key) => key === 'Foldable#0').length, 2,
-		'the block fold and the framing fold each own their open state');
+	assert.equal(withFrame.filter((key) => key === 'Foldable#0').length, 1,
+		'the framing fold owns its own open state (the block fold it used to sit under is gone)');
 
 	page.setState(ADV, { kind: 'gradient', url: null });
 	page.clearHookKeys();
@@ -2291,8 +2293,8 @@ test('w7b: the hook-owning helpers own their cells, not the row that renders the
 	const frameFree = page.hookKeys;
 	assert.equal(frameFree.filter((key) => key.indexOf('Slider#') === 0).length, 0,
 		'no picture, no framing sliders — and therefore no slider hook cells at all');
-	assert.equal(frameFree.filter((key) => key === 'Foldable#0').length, 1,
-		'only the block fold is left, and it still owns its own state');
+	assert.equal(frameFree.filter((key) => key === 'Foldable#0').length, 0,
+		'no picture, no sub-fold — so the row renders no Foldable cell at all');
 });
 
 test('mutation: invoking a hook-owning helper inline reddens the hook-ownership cases', () => {
