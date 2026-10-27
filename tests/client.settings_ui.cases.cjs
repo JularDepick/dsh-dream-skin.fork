@@ -249,8 +249,8 @@ test('url kind: the link box, the refresh switch, the rotation source and the li
 	assert.ok(urlBox, 'url kind renders the link box');
 	assert.equal(urlBox.props.defaultValue, 'https://example.com/w.jpg', 'an uncontrolled box still starts on the stored link');
 
-	assert.deepEqual(checkboxLabels(row), ['bg2.refresh', 'bg2.rotation', 'bg2.autodim'],
-		'url kind adds the scheduled-refresh and rotation switches in front of the shared auto-dim one');
+	assert.deepEqual(checkboxLabels(row), ['bg2.refresh', 'bg2.autodim'],
+		'url kind adds the scheduled-refresh switch in front of the shared auto-dim one — the rotation is the FORM selector\'s job, not a second switch');
 	// W6a: the three kind chips are gone — the FORM is a <select> now (see §13) — and
 	// what stays here is the fixed picture's own source pair (link / local file).
 	assert.deepEqual(pressedChips(row), [
@@ -341,7 +341,7 @@ test('the refresh / rotation / folder sub-blocks open and close with their own c
 	page.setState(ADV, { rotation: rotation() });
 	let row = page.renderRow(ADV);
 	const numbers = numberInputs(row);
-	assert.equal(numbers.length, 2, 'the rotation switch adds its own interval box next to the refresh one');
+	assert.equal(numbers.length, 2, 'the 轮播图片 form adds its own interval box next to the refresh one');
 	const rotationBox = numbers[1];
 	assert.deepEqual([rotationBox.props.min, rotationBox.props.max, rotationBox.props.value], [5, 10080, 30],
 		'the rotation interval is minutes, 5..10080 (seven days)');
@@ -565,7 +565,7 @@ test('a11y: the five glass sliders and the framing group each carry their label 
 	assert.deepEqual(sliderProblems(section), [], 'every slider is named and reads out its own display');
 });
 
-test('a11y: all seven switches sit inside their own <label>, wording and onChange intact', () => {
+test('a11y: all six switches sit inside their own <label>, wording and onChange intact', () => {
 	const page = buildSettingsPage({});
 	const glass = page.renderRow('dream-skin-glass');
 	assert.deepEqual(switchProblems(glass,
@@ -573,8 +573,8 @@ test('a11y: all seven switches sit inside their own <label>, wording and onChang
 		'the four glass switches are labelled by their own text');
 
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(switchProblems(page.renderRow(ADV), ['bg2.refresh', 'bg2.rotation', 'bg2.autodim']), [],
-		'the three advanced-wallpaper switches too');
+	assert.deepEqual(switchProblems(page.renderRow(ADV), ['bg2.refresh', 'bg2.autodim']), [],
+		'the two advanced-wallpaper switches too');
 });
 
 test('a11y: a theme-pack card is a labelled group of three buttons, never a button inside a button', () => {

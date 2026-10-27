@@ -595,15 +595,17 @@ test('the rotation controls show on the link kind only, and each control calls i
 		setRotationList: (v) => calls.push(['setRotationList', v]),
 		setRotationMode: (v) => calls.push(['setRotationMode', v]),
 		setRotationMinutes: (v) => calls.push(['setRotationMinutes', v]),
+		setRefresh: (on, hours) => calls.push(['setRefresh', on, hours]),
 		rotateNow: () => calls.push(['rotateNow'])
 	};
 	const state = (over) => ({ kind: 'url', url: 'https://example.com/a.jpg', gradient: null, history: [],
+		refreshOn: false, refreshHours: 24,
 		rotation: { on: true, mode: 'random', minutes: 30, urls: ['https://example.com/a.jpg', 'https://example.com/b.jpg'] }, ...over });
 	const find = (seen, pred) => seen.find(pred);
 
 	// Sample 1: a link wallpaper with two saved links shows the whole control set.
 	let seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state(), props);
-	for (const key of ['bg2.rotation', 'bg2.rotationList', 'bg2.rotationSave', 'bg2.rotationNow', 'bg2.rotationMinutes', 'bg2.rotationSequential', 'bg2.rotationRandom']) {
+	for (const key of ['bg2.rotationList', 'bg2.rotationSave', 'bg2.rotationNow', 'bg2.rotationMinutes', 'bg2.rotationSequential', 'bg2.rotationRandom']) {
 		assert.ok(hasText(seen, key), `${key} is on the page`);
 	}
 	const box = find(seen, (n) => n.type === 'textarea');
@@ -619,10 +621,14 @@ test('the rotation controls show on the link kind only, and each control calls i
 	buttonWith('bg2.rotationSave').props.onClick();
 	buttonWith('bg2.rotationNow').props.onClick();
 	buttonWith('bg2.rotationSequential').props.onClick();
-	find(seen, (n) => n.type === 'input' && n.props.type === 'checkbox' && n.props.checked === true).props.onChange({ target: { checked: false } });
-	assert.deepEqual(calls.map((c) => c[0]), ['setRotationList', 'rotateNow', 'setRotationMode', 'setRotation'], 'one action per control');
+	// W10: the rotation is a FORM of its own (the 背景形式 selector), so the link kind carries
+	// two switches — the scheduled refresh and the shared auto-dim — and no "rotate" one.
+	const switches = seen.filter((n) => n.type === 'input' && n.props && n.props.type === 'checkbox');
+	assert.equal(switches.length, 2, 'the link kind carries the refresh switch and the shared auto-dim one, nothing else');
+	switches[0].props.onChange({ target: { checked: true } });
+	assert.deepEqual(calls.map((c) => c[0]), ['setRotationList', 'rotateNow', 'setRotationMode', 'setRefresh'], 'one action per control');
 	assert.deepEqual(calls[2], ['setRotationMode', 'sequential'], 'the mode button passes its mode');
-	assert.deepEqual(calls[3], ['setRotation', false], 'the checkbox passes its state');
+	assert.deepEqual(calls[3], ['setRefresh', true, 24], 'the refresh switch passes its state and the stored interval');
 
 	// Sample 2 (reverse legs): fewer than two links hides the controls that need two; other kinds hide everything.
 	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ rotation: { on: false, mode: 'sequential', minutes: 60, urls: ['https://example.com/a.jpg'] } }), props);
@@ -634,9 +640,11 @@ test('the rotation controls show on the link kind only, and each control calls i
 		assert.equal(hasText(seen, 'bg2.rotation'), false, `${kind}: no rotation checkbox`);
 		assert.equal(hasText(seen, 'bg2.rotationList'), false, `${kind}: no list box`);
 	}
-	// A state from before the field existed renders as "never configured", not as a crash.
+	// A state from before the rotation field existed renders as "never configured", not as a crash —
+	// and reads back as the 固定图片 form, because a link with no rotation is a fixed picture.
 	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', { kind: 'url', url: null, gradient: null, history: [] }, props);
-	assert.ok(hasText(seen, 'bg2.rotation'), 'an old state still renders the rotation checkbox');
+	assert.equal(hasText(seen, 'bg2.rotation'), false, 'the rotation switch is gone: the 背景形式 selector carries it');
+	assert.equal(find(seen, (n) => n.type === 'select').props.value, 'fixed', 'an old state with no rotation field reads as 固定图片');
 });
 
 // ── every rotation string the page asks for is defined ────────────────────────────────────────
