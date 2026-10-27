@@ -47,7 +47,11 @@ const BUDGETS = {
 	// Six panes: host question card (24), host todo/queue panel (20), our modal card,
 	// our composer ::before, and the @supports composer recipe. The low-power `none`
 	// declaration is the kill switch, not a pane, and is counted apart.
-	backdropFilterDeclarations: 6,
+	// 6 -> 7 on 10.28.1: the host paints NO surface behind the "/" trigger menu
+	// ([data-composer-overlay] is height:0 and the MenuView class declares no
+	// background), so the plugin paints that pane itself — issue #124, one real
+	// offscreen pass, added on purpose.
+	backdropFilterDeclarations: 7,
 	// 34px = the composer's `calc(glass + thickness)` default. 40 is the width above
 	// which extra radius buys nothing but fill cost, so the ceiling is 40, not "34 + 1".
 	maxStaticBlurPx: 40,
