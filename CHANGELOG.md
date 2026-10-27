@@ -34,7 +34,7 @@
 ### 五、发布读数（10.28.1）
 
 - **提交与 tag**：代码 `b04dc0d`；tag `v10.28.1` → `b04dc0d`（本轮 main 与 tag 同一个点，没有 10.28.0 那种"tag 先推、main 被抢先"的收口动作）。
-- **CI run `40549305976` 六作业全绿**：`test (18/20/22)` 三份各 `# tests 631 / # pass 595 / # fail 0 / # skipped 36`；`test (24)` 跑的是"Syntax check the host + client bundles"（不是套件），与 `typecheck` / `Computed-style gate` / `finite-caller-set` 一样只记结论 `success`。CI 形态比本机多跳过 34 条（宿主与浏览器夹具在场与否的差别），本机形态是 `631 / 629 pass / 0 fail / 2 skipped`。
+- **CI run `40549305976` 七个作业全绿**：`test (18/20/22)` 三份各 `# tests 631 / # pass 595 / # fail 0 / # skipped 36`；`test (24)` 跑的是"Syntax check the host + client bundles"（不是套件），与 `typecheck` / `Computed-style gate` / `finite-caller-set` 一样只记结论 `success`。CI 形态比本机多跳过 34 条（宿主与浏览器夹具在场与否的差别），本机形态是 `631 / 629 pass / 0 fail / 2 skipped`。
 - **Plugin Security Scan run `40549307161`、Release run `40549316805` 均 success**（Release 正文 = 本条 10.28.1 条目）。
 - **npm**：`+ dsh-dream-skin@10.28.1`；packument `time` 戳 **`2026-10-27T17:24:26.457Z`**；`dist.shasum` **`0192f70b9d395ee96aa25caa36c74a611ad8df7c`**，与本地 `npm pack` 那份（203,552 字节 / 14 文件）逐位相同。
 - **读侧延迟第十二次实遇**，这次多记一条形状：时间戳落库之后，`npm view dsh-dream-skin@10.28.1`（`--prefer-online` + 全新缓存目录）仍报 `E404`，而**同一分钟**直接读 `https://registry.npmjs.org/dsh-dream-skin` 已经能看到 10.28.1 与它的 `time`；十几秒后 npm 侧也恢复。判据不变：**看 packument 的 `time`，不拿一次 `view` / `install` 的 404 当发布失败**；要最快确认，用 `curl` 直读 registry 而不是经 npm CLI。
@@ -90,7 +90,7 @@
 
 - **提交与 tag**：代码 `cf879f5`（10 文件）+ 测试补钉 `fdb8316`（首启用例直接钉住侧边栏两键）+ merge `cf37d0d`（上游是机器人每日增长图提交，推送被拒后并入）；tag `v10.28.0` → `fdb8316`，**该提交经 merge 出现在 main 上**，所以没有重写已推的 tag（理由见下一条）。
 - **tag 已推、main 被抢先时怎么收口（本轮的实际形状）**：先只推了 tag（触发 Release 工作流并成功），随后推 main 被拒（`ahead 2, behind 1`）。第一反应 rebase 后强推 tag 是**改一个已经公开的 ref**；实际做法是 `git reset --hard $(git rev-parse v10.28.0^{commit})`（tag 持有那两个提交）→ `git merge origin/main` → 推 main：tag 目标因此在 main 上可达、Release 仍指向它，**零强推**，代价只是一个 merge 提交。
-- **CI run 40544081765 六作业全绿**：`test (18/20/22)` 各 `# tests 628 / # pass 593 / # fail 0 / # skipped 35`；`test (24)` / `typecheck` / `Computed-style gate` / `finite-caller-set` 均 `success`（这一轮没有逐份去抓 24 那一份的计数行，只记它的结论——不编数字）。本机两种形态：有宿主 `628 / 627 pass / 0 fail / 1 skipped`；CI 形态 `628 / 600 pass / 0 fail / 28 skipped`。
+- **CI run 40544081765 七个作业全绿**：`test (18/20/22)` 各 `# tests 628 / # pass 593 / # fail 0 / # skipped 35`；`test (24)` / `typecheck` / `Computed-style gate` / `finite-caller-set` 均 `success`（这一轮没有逐份去抓 24 那一份的计数行，只记它的结论——不编数字）。本机两种形态：有宿主 `628 / 627 pass / 0 fail / 1 skipped`；CI 形态 `628 / 600 pass / 0 fail / 28 skipped`。
 - **npm**：`+ dsh-dream-skin@10.28.0`，packument `time` 戳 **`2026-10-27T16:52:36.299Z`**；`dist.shasum` **`0f755732f950e50703067fb1e829fa1bb73d3e75`** 与本地 `npm pack` 那份逐位相同（202,208 字节 / 14 文件）。**读侧延迟第十一次实遇**：publish 回执 `+ …@10.28.0` 已出、HTTP 侧 `PUT 202`，而 `time` / `dist-tags` / 单版本 endpoint 一致要等到约 4 分钟后。
 - **一个新坑，值得单独记**：registry 已经有 10.28.0 之后，本机 `npm install dsh-dream-skin@10.28.0` 仍然报 `notarget`——不是发布失败，是**本机 npm 的 packument 缓存**还停在旧版本。加 `--prefer-online --cache <新目录>` 后立刻装到 10.28.0。**判据**：`view` 与 `install` 打架时，先怀疑本机缓存，不要怀疑发布。
 - **从 registry 真装一次**（发布清单 B6）：14 文件、版本 10.28.0；`lib/client.js` **524,885 字节**、`lib/index.js` 26,703、`package.json` 3,915、`README.md` 48,308、`locale/en.json` 218、`locale/zh.json` 197、`icon.svg` 1,905 —— **全部与工作树逐字节相同**。
