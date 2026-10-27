@@ -46,6 +46,18 @@
 - **已有用户一个键都不会被改写**：出厂种子只在键缺席时写入（`factory-applied` 标记 + 逐键判空都有用例），维护者自己那份 18 键文件在装新版本前后应当逐字符相同——这一点本轮**没有**去重启验证（不打扰正在跑的实例），证据是代码路径与 `round-6/round-7` 两条既有用例，不是活页读数。
 - **没有做"新装用户看到什么"的目视**：要看到它必须清掉一份 profile 的 localStorage 再重启。门与首启用例覆盖的是"写了哪些键、值是多少"，不是像素。
 - 侧边栏 `link: true` 的出厂值**会让不拖滑杆的新用户一直跟随壁纸**（滑杆在那一刻不生效）——这是该开关的定义，也是 #55 修法之后的既定语义；若之后有人反馈"滑杆没反应"，先看这个勾选，而不是当缺陷。
+### 六、发布读数（10.28.0）
+
+- **提交与 tag**：代码 `cf879f5`（10 文件）+ 测试补钉 `fdb8316`（首启用例直接钉住侧边栏两键）+ merge `cf37d0d`（上游是机器人每日增长图提交，推送被拒后并入）；tag `v10.28.0` → `fdb8316`，**该提交经 merge 出现在 main 上**，所以没有重写已推的 tag（理由见下一条）。
+- **tag 已推、main 被抢先时怎么收口（本轮的实际形状）**：先只推了 tag（触发 Release 工作流并成功），随后推 main 被拒（`ahead 2, behind 1`）。第一反应 rebase 后强推 tag 是**改一个已经公开的 ref**；实际做法是 `git reset --hard $(git rev-parse v10.28.0^{commit})`（tag 持有那两个提交）→ `git merge origin/main` → 推 main：tag 目标因此在 main 上可达、Release 仍指向它，**零强推**，代价只是一个 merge 提交。
+- **CI run 40544081765 六作业全绿**：`test (18/20/22)` 各 `# tests 628 / # pass 593 / # fail 0 / # skipped 35`；`test (24)` / `typecheck` / `Computed-style gate` / `finite-caller-set` 均 `success`（这一轮没有逐份去抓 24 那一份的计数行，只记它的结论——不编数字）。本机两种形态：有宿主 `628 / 627 pass / 0 fail / 1 skipped`；CI 形态 `628 / 600 pass / 0 fail / 28 skipped`。
+- **npm**：`+ dsh-dream-skin@10.28.0`，packument `time` 戳 **`2026-10-27T16:52:36.299Z`**；`dist.shasum` **`0f755732f950e50703067fb1e829fa1bb73d3e75`** 与本地 `npm pack` 那份逐位相同（202,208 字节 / 14 文件）。**读侧延迟第十一次实遇**：publish 回执 `+ …@10.28.0` 已出、HTTP 侧 `PUT 202`，而 `time` / `dist-tags` / 单版本 endpoint 一致要等到约 4 分钟后。
+- **一个新坑，值得单独记**：registry 已经有 10.28.0 之后，本机 `npm install dsh-dream-skin@10.28.0` 仍然报 `notarget`——不是发布失败，是**本机 npm 的 packument 缓存**还停在旧版本。加 `--prefer-online --cache <新目录>` 后立刻装到 10.28.0。**判据**：`view` 与 `install` 打架时，先怀疑本机缓存，不要怀疑发布。
+- **从 registry 真装一次**（发布清单 B6）：14 文件、版本 10.28.0；`lib/client.js` **524,885 字节**、`lib/index.js` 26,703、`package.json` 3,915、`README.md` 48,308、`locale/en.json` 218、`locale/zh.json` 197、`icon.svg` 1,905 —— **全部与工作树逐字节相同**。
+- **把宿主函数指向那份安装物读了一次**：`readPluginMeta("dsh-dream-skin", <安装目录>)` ⇒ 两语 title / 两语 description / 2,566 字符 icon data URL 全在（这条自 10.15.0 起因 i18n 改动而成为惯例，每版都跑一次）。
+- **GitHub Release**：由 tag 推送触发的 Release 工作流自动创建（run 40543940783），正文 = 本文件 10.28.0 条目；<https://github.com/RevolutionLA/dsh-dream-skin/releases/tag/v10.28.0>。
+- **仍未验证的那一眼**：没有清掉任何 profile 的 localStorage 去"看"新装用户的首次外观，也没有重启维护者正在跑的实例。证据是首启用例（写了哪些键、值是多少）+ 生成器与 SKINS 块的同步门，**不是像素**。
+
 ## [10.27.1] - 2026-10-27
 
 > **给 #110 一个能复算的静态坐标，并顺手纠正了提出这个想法的评审里三处未经实测的前提。** #110（M4 上 GPU >50%、双窗口卡死）挂了 8 天没有数据，而本仓库的规矩是"未实测不得定级"。这一版不假装能复现那台 Mac 的运行时刻，而是把**静态那一半**变成可复算的数字：新脚本 `scripts/compositor-audit.cjs` 逐处列出 `backdrop-filter`、模糊半径、渐变层与 rAF 循环（带行号），新门 `tests/compositor_budget.test.cjs` 把这些数字钉在**声明的天花板**上。合计 **229 项质量门全过**（217 调色 + 12 工艺），全套 `npm test` 620→**627 全绿**。
