@@ -38,6 +38,15 @@ PR 里还有第二个提交：给这两个滑杆换一套自制外观（20px 环
 - **没有在真机上目视过这次拖动**：本机 DSH 实例没在跑，而"拖动时整块面板消失、只留一行芯片"这件事只有画面能给结论。代码侧的证据是：宿主 DOM 形状（读安装物源码）+ VM 里按同一形状跑通的行为腿 + 五条变异腿。用户/贡献者升级后拖一次即可确认。
 - 贡献者自报"已在本地安装并实测可用"，宿主版本未说明；本版按 `0.2.0-rc.1` 与 `0.2.1-rc.3` 共同的 `presentation` 包装形状实现，更老的宿主若结构不同，`closest('[role="dialog"]')` 找不到时**直接不启用预览**（滑杆本身不受影响）。
 
+### 六、发布读数（10.29.0）
+
+- **提交与 tag**：作者提交 `327d02a`（`@ppy-web` 原作）+ 本轮 `cae5a3f`；tag `v10.29.0`。推 main 时被机器人日更图提交（`19605d2`）抢先，`rebase` 后再推——线性历史，**零强推**。
+- **CI run `40745912489` 七作业全绿**：`test (18/20/22)` 三份各 `# tests 634 / # pass 598 / # fail 0 / # skipped 36`；`test (24)`（语法检查）/ `typecheck` / `Computed-style gate` / `finite-caller-set` 均 `success`。本机形态 `634 / 632 pass / 0 fail / 2 skipped`。
+- **Plugin Security Scan run `40745913145`、Release run `40745930297` 均 success**；<https://github.com/RevolutionLA/dsh-dream-skin/releases/tag/v10.29.0>（正文 = 本条 10.29.0 条目）。
+- **npm**：`+ dsh-dream-skin@10.29.0`；packument `time` **`2026-10-28T18:35:15.616Z`**；`dist.shasum` **`97070012929b4184eb4a063234d3ac124d27fbb2`**，与本地 `npm pack` 那份（205,996 字节 / 14 文件）逐位相同。**读侧延迟第十三次实遇**：回执已出，首次直读 registry 的 `dist-tags.latest` 仍是 10.28.1、`time` 为空，约一分钟后到位——判据不变，看 `time`。
+- **从 registry 真装一次**：临时目录 `npm install dsh-dream-skin@10.29.0` ⇒ 14 个文件、版本 10.29.0，**逐个与工作树逐字节相同（0 处不一致）**；`lib/client.js` 533,176 字节。宿主 `readPluginMeta("dsh-dream-skin", <安装目录>)` ⇒ 两语 title / 两语 description / 2,566 字符 icon data URL 全在。
+- **仍未验证**：本机 DSH 实例没在跑，"拖动时面板让出画面、只留一行芯片"**没有目视过**；证据是宿主 DOM 形状（读安装物源码）+ VM 行为腿 + 五条变异腿。贡献者升级后可回填一句。
+
 ## [10.28.1] - 2026-10-28
 
 > **修 #124：打 `/` 弹出的命令菜单没有自己的背景 —— 宿主不画，我们的玻璃输入框把聊天文字漏了上来。** 先把"是谁没画"量清楚：命令菜单（`dsh-client-ui-input-trigger` 的 `MenuView`）的类**只声明布局**，没有任何 `background` / `backdrop-filter`；它渲染进的槽位 `[data-composer-overlay]` 也是 `height:0; position:absolute`。宿主用不透明主题时被输入框挡住，我们的输入框是玻璃，于是文字透上来、滑杆也没有东西可调 —— 两条都对着报告里的原话。合计 **229 项质量门全过**（217 调色 + 12 工艺），全套 `npm test` 628→**631 全绿**。
