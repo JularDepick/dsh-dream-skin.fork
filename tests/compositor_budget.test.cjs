@@ -51,7 +51,14 @@ const BUDGETS = {
 	// ([data-composer-overlay] is height:0 and the MenuView class declares no
 	// background), so the plugin paints that pane itself — issue #124, one real
 	// offscreen pass, added on purpose.
-	backdropFilterDeclarations: 7,
+	// 7 -> 8 on 10.29.0: the wallpaper-preview rule clears the dialog wrappers while
+	// a slider is dragged (`visibility` lets them paint, so their own glass would
+	// otherwise blur the page under the floating row). That declaration is a
+	// `backdrop-filter: none` — it REMOVES a pass, same class as the low-power kill
+	// switch, so the pane count did not grow. The budget counts declarations, not
+	// panes (issue #110's boundary), and an 8th declaration still has to be declared
+	// here on purpose.
+	backdropFilterDeclarations: 8,
 	// 34px = the composer's `calc(glass + thickness)` default. 40 is the width above
 	// which extra radius buys nothing but fill cost, so the ceiling is 40, not "34 + 1".
 	maxStaticBlurPx: 40,
