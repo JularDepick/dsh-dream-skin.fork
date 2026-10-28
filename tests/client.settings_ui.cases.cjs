@@ -2519,3 +2519,117 @@ test('mutation: letting 使用此文件夹 fire without a folder reddens the sta
 		.filter((view) => chipByText([pickerView(view, { code: mutated })], 'bg2.dirChoose').props.disabled === false);
 	assert.equal(problems.length, 3, 'mutation expected: the three standstills now offer a folder they do not have');
 });
+
+// ---------------------------------------------------------------------------
+// The picker after a failure, and a refusal that arrives late (audit P1s)
+// ---------------------------------------------------------------------------
+
+/** A failed attempt on a CHILD folder: the panel is still standing in its parent. */
+const STUCK_VIEW = {
+	path: '/home/me/Pics',
+	crumbs: [{ name: 'me', path: '/home/me' }, { name: 'Pics', path: '/home/me/Pics' }],
+	entries: [{ name: 'Walls', path: '/home/me/Pics/Walls' }],
+	truncated: false,
+	busy: false,
+	error: 'read',
+	retry: '/home/me/Pics/Private'
+};
+
+test('the picker keeps the folder it stands in when a listing fails, and 重试 asks for that folder again', () => {
+	const panel = pickerView(STUCK_VIEW);
+	assert.ok(panel, 'the panel still renders while it is in the error state');
+	assert.ok(textOf([panel]).indexOf('bg2.dirFailed') !== -1, 'the reason is printed in place, not only in an alert');
+	assert.equal(chipByText([panel], 'bg2.dirChoose').props.disabled, true, 'a standstill still cannot hand a folder back');
+	assert.equal(chipByText([panel], 'bg2.dirUp').props.disabled, false,
+		'and 上一级 keeps working, because the standing folder was never dropped');
+	assert.ok(chipByText([panel], 'bg2.dirRetry'), '重试 is offered — the panel is not a dead end');
+
+	// No browse capability at all is not a retryable state: the button would only fail again.
+	const offline = pickerView(Object.assign({}, STUCK_VIEW, { path: '', crumbs: [], entries: [], error: 'unavailable', retry: null }));
+	assert.equal(chipByText([offline], 'bg2.dirRetry'), null, 'a host that cannot browse is told so, without a 重试 button');
+});
+
+test('重试 re-reads the folder that failed — not the one the panel is standing in', () => {
+	const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': STUCK_VIEW } });
+	page.setState(ADV, {
+		kind: 'url',
+		url: null,
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 12, folderError: null }
+	});
+	const row = page.renderRow(ADV);
+	const panel = findOne(row, (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
+	assert.ok(panel, 'the panel is open in this case');
+	page.clearHookCalls();
+	chipByText([panel], 'bg2.dirRetry').props.onClick();
+	assert.deepEqual(page.hookCalls, [{ hook: 'FolderPicker#0', value: {
+		path: '/home/me/Pics',
+		crumbs: STUCK_VIEW.crumbs,
+		entries: STUCK_VIEW.entries,
+		truncated: false,
+		busy: true,
+		error: null,
+		retry: null
+	} }], '重试 turns the panel busy again while keeping the folder it stands in');
+});
+
+test('an ASYNCHRONOUS refusal lands on the row, not only in a dismissed alert', async () => {
+	const page = buildSettingsPage({});
+	page.setState(ADV, {
+		kind: 'url',
+		url: 'https://example.com/w.jpg',
+		rotation: { on: false, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 4, folderError: null }
+	});
+	const bag = page.actionsOf(ADV);
+	const asked = [];
+	// The folder pool is read asynchronously, so the verdict arrives after the click.
+	bag.setRotation = (on) => { asked.push(on); return Promise.resolve({ ok: false, reason: 'bg2.rotationFolderHostDown' }); };
+	page.clearHookCalls();
+	pickFormWith(page, 'rotation');
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation'],
+		'the cleared line and the picked form land at once — the host has not answered yet');
+	assert.deepEqual(asked, [true], 'the click did ask for the rotation');
+	await Promise.resolve();
+	await Promise.resolve();
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation', 'bg2.rotationFolderHostDown'],
+		'and the refusal that came back is printed where the other warnings live');
+});
+
+test('mutation: dropping the standing folder or the late refusal reddens these two cases', async () => {
+	const tick = () => new Promise((resolve) => setImmediate(resolve));
+	const keepAnchor = 'setView({ path: held.path, crumbs: held.crumbs, entries: held.entries, truncated: held.truncated, busy: false, error: kind, retry: typeof target === "string" ? target : null });';
+	assert.equal(countOf(CODE, keepAnchor), 1, 'the failure view must be written in exactly one place');
+	const dropped = CODE.replace(keepAnchor, keepAnchor.replace('path: held.path, crumbs: held.crumbs, entries: held.entries', 'path: "", crumbs: [], entries: []'));
+	assert.notEqual(dropped, CODE, 'mutation ㉗ has to change the bundle');
+	const broken = buildSettingsPage({ code: dropped, hookInitials: { 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': STUCK_VIEW } });
+	broken.setState(ADV, {
+		kind: 'url',
+		url: null,
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 12, folderError: null }
+	});
+	broken.actionsOf(ADV).listFolders = () => Promise.resolve({ error: 'read' });
+	const brokenRow = broken.renderRow(ADV);
+	const brokenPanel = findOne(brokenRow, (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
+	broken.clearHookCalls();
+	chipByText([brokenPanel], 'bg2.dirRetry').props.onClick();
+	await tick();
+	assert.equal(broken.hookCalls.length, 2, 'the retry writes the busy view and then the failure view');
+	assert.equal(broken.hookCalls[1].value.path, '',
+		'mutation expected: the failed retry forgets the folder the panel stands in, so 上一级 has nowhere to go — the dead end the fix removes');
+
+	const reportAnchor = 'if (answer && answer.ok === false) setFormHint(answer.reason || null);';
+	assert.equal(countOf(CODE, reportAnchor), 1, 'the late-refusal reporter must occur exactly once');
+	const silent = CODE.replace(reportAnchor, 'if (answer && answer.ok === false) setFormHint(null);');
+	assert.notEqual(silent, CODE, 'mutation ㉘ has to change the bundle');
+	const page = buildSettingsPage({ code: silent });
+	page.setState(ADV, {
+		kind: 'url',
+		url: 'https://example.com/w.jpg',
+		rotation: { on: false, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 4, folderError: null }
+	});
+	page.actionsOf(ADV).setRotation = () => Promise.resolve({ ok: false, reason: 'bg2.rotationFolderHostDown' });
+	page.clearHookCalls();
+	pickFormWith(page, 'rotation');
+	await tick();
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation', null],
+		'mutation expected: the refused click leaves only the alert, and the row pretends the rotation armed');
+});
