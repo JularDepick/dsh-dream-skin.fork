@@ -78,7 +78,7 @@ const isTitleLine = (node) => node.tag === 'h3'
 	|| (node.tag === 'button' && 'aria-expanded' in node.props)
 	|| (node.tag === 'div' && node.props.style !== undefined
 		&& node.props.style.color === 'var(--dsw-alias-label-primary)'
-		&& node.props.style.fontSize === '14px');
+		&& node.props.style.fontSize === '13px');
 
 /** Every title line under `nodes`, in document order. */
 const titleLines = (nodes) => findAll(nodes, isTitleLine);
@@ -331,7 +331,7 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	// 图片轮播 is a form of its own (W11), so its settings are checked on a row whose selector
 	// sits on that form — the pinned view cell is how a case reaches a branch the store
 	// cannot derive yet (an unarmed pool derives as 固定图片).
-	const pool = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#7': 'rotation' } });
+	const pool = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#6': 'rotation' } });
 	pool.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 12, rotation: Object.assign({}, ROTATION, { on: true }) });
 	let row = pool.renderRow(ADV);
 	const numbers = numberInputs(row);
@@ -366,8 +366,8 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	assert.ok(chipByText(row, 'bg2.folderAdd'), 'and the one entry that adds a folder is the picker button');
 	assert.ok(!textOf(row).includes('bg2.pathEmpty'), 'the empty line is gone once a folder is in the list');
 	assert.ok(chipByText(row, 'bg2.pathRemove'), 'whose row can only be deleted');
-	assert.equal(findOne(row, (node) => node.props['aria-label'] === 'bg2.dirPick'), null,
-		'the picker panel itself stays closed until that button is clicked');
+	assert.equal(findAll(row, (node) => node.props && node.props.role === 'group').length, 0,
+		'and no panel is mounted beside it: the folder dialog belongs to the operating system (m06450)');
 	assert.ok(textOf(row).includes('bg2.rotationFolderCount'), 'the count line comes from the store, not from a default');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', false], ['bg2.rotationSourceFolder', true],
@@ -1102,7 +1102,7 @@ test('responsive: the slider and link rows fit every content column (559 / 311 /
 	}
 
 	// The readings, as facts: the 311px column leaves a 257px track and the 131px one 77px.
-	assert.deepEqual(readings.map((reading) => reading.track), [334, 167, 257, 77],
+	assert.deepEqual(readings.map((reading) => reading.track), [330, 163, 255, 75],
 		'the four slider tracks, computed from the rendered gap/value cells: ' + JSON.stringify(readings));
 	for (const reading of readings) {
 		for (const cell of ['column', 'track', 'labelLine', 'boxLine', 'buttonLine']) {
@@ -1538,13 +1538,13 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation', 'bg2.rotationNeedTwo'],
 		'the row clears the old reason, remembers the pick, then states the reason the action would have alerted');
 	assert.deepEqual(page.hookCalls.map((call) => call.hook),
-		['WallpaperAdvancedRow#6', 'WallpaperAdvancedRow#7', 'WallpaperAdvancedRow#6'],
+		['WallpaperAdvancedRow#5', 'WallpaperAdvancedRow#6', 'WallpaperAdvancedRow#5'],
 		'one cell for the reason and one for the pick: the view state never lands in the store');
 	assert.equal(page.stateOf(ADV).rotation.on, false, 'and nothing was armed: one link is not a rotation');
 
 	// The state drives the DOM: a page whose cell holds the reason RENDERS it, in the
 	// error colour the other in-place warnings use.
-	const refused = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#6': 'bg2.rotationNeedTwo' } });
+	const refused = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo' } });
 	refused.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
 	const row = refused.renderRow(ADV);
 	assert.ok(textOf(row).includes('bg2.rotationNeedTwo'), 'the row has to SAY why the slideshow did not start');
@@ -1556,7 +1556,7 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	// 固定图片, because the pool editor that fixes the refusal lives in the branch the
 	// user just picked. The pick is a view cell, so a pinned one proves the render.
 	const stuck = buildSettingsPage({
-		hookInitials: { 'WallpaperAdvancedRow#6': 'bg2.rotationNeedTwo', 'WallpaperAdvancedRow#7': 'rotation' }
+		hookInitials: { 'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo', 'WallpaperAdvancedRow#6': 'rotation' }
 	});
 	stuck.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
 	const stuckRow = stuck.renderRow(ADV);
@@ -1579,9 +1579,9 @@ test('w11: 保存列表 and the source chip both drop a stale refusal', () => {
 	// typed text is pinned in the row's own cell (#2) — the click reads that cell, not storage.
 	const armed = buildSettingsPage({
 		hookInitials: {
-			'WallpaperAdvancedRow#2': 'https://a.jpg\nhttps://b.jpg',
-			'WallpaperAdvancedRow#6': 'bg2.rotationNeedTwo',
-			'WallpaperAdvancedRow#7': 'rotation'
+			'WallpaperAdvancedRow#1': 'https://a.jpg\nhttps://b.jpg',
+			'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo',
+			'WallpaperAdvancedRow#6': 'rotation'
 		}
 	});
 	armed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
@@ -1591,7 +1591,7 @@ test('w11: 保存列表 and the source chip both drop a stale refusal', () => {
 	const armRow = armed.renderRow(ADV);
 	armed.clearHookCalls();
 	chipByText(armRow, 'bg2.rotationSave').props.onClick();
-	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#6', null]],
+	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#5', null]],
 		'保存列表 clears the refusal line in the same click that arms the rotation');
 	assert.deepEqual(armCalls, [['setRotation', true]], 'and arms it: the pool the user just saved is the one it named');
 
@@ -1601,7 +1601,7 @@ test('w11: 保存列表 and the source chip both drop a stale refusal', () => {
 	armBag.setRotationSource = (...args) => { switchCalls.push(['setRotationSource'].concat(args)); };
 	const switchRow = armed.renderRow(ADV);
 	chipByText(switchRow, 'bg2.rotationSourceFolder').props.onClick();
-	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#6', null]],
+	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#5', null]],
 		'the source chip drops the stale reason too');
 	assert.deepEqual(switchCalls, [['setRotationSource', 'folder']], 'and still switches the source');
 
@@ -1847,6 +1847,9 @@ const PICTURE_FORMS = [
 /** S1's three chips, in the order 设计稿 40-43 lists them. */
 const FILL_KEYS = ['bg2.fillCover', 'bg2.fillBlur', 'bg2.fillContain'];
 
+/** The interval unit chips (m06450: a chip row, not a second select). */
+const UNIT_KEYS = ['bg2.unitMinutes', 'bg2.unitHours', 'bg2.unitDays'];
+
 /**
  * Everything wrong with the shared S1 / S2 blocks: present under BOTH picture forms, mirroring the
  * store, and reaching the SAME row actions with the same arguments. The action bag is spied on
@@ -1931,11 +1934,11 @@ test('w6b: 轮播设置 is a plain labelled group after the pool editor, and the
 	assert.deepEqual([boxes[0].props.min, boxes[0].props.max, boxes[0].props.value], [5, 10080, '30'],
 		'and it is the minutes box (5..10080), so the row contract is intact');
 
-	const unit = findOne(row, (node) => node.tag === 'select' && node.props['aria-label'] === 'bg2.unit');
-	assert.ok(unit, '设计稿 60: 切换间隔 carries its own unit, so the box is never silently always minutes');
-	assert.deepEqual(findAll([unit], (node) => node.tag === 'option').map((node) => firstText([node])),
-		['bg2.unitMinutes', 'bg2.unitHours', 'bg2.unitDays'], '分钟 / 小时 / 天, in that order');
-	assert.equal(unit.props.value, 'minutes', 'and it opens on the unit the store speaks');
+	assert.deepEqual(pressedChips(row).filter(([key]) => UNIT_KEYS.indexOf(key) !== -1),
+		[['bg2.unitMinutes', true], ['bg2.unitHours', false], ['bg2.unitDays', false]],
+		'设计稿 60 + m06450: 切换间隔 carries its own unit as three chips — 分钟 / 小时 / 天, the first one pressed');
+	assert.equal(findAll(row, (node) => node.tag === 'select').length, 1,
+		'and the unit is no longer a second select: the form selector is the only one left');
 
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
@@ -1976,9 +1979,9 @@ test('mutation: an interval that ignores its unit reddens the unit case', () => 
 	// Pinned: a typed draft (cell #3), the hours unit (cell #4) and the rotation form (cell #7).
 	const run = (code) => {
 		const page = buildSettingsPage({ code, hookInitials: {
-			'WallpaperAdvancedRow#3': '3',
-			'WallpaperAdvancedRow#4': 'hours',
-			'WallpaperAdvancedRow#7': 'rotation'
+			'WallpaperAdvancedRow#2': '3',
+			'WallpaperAdvancedRow#3': 'hours',
+			'WallpaperAdvancedRow#6': 'rotation'
 		} });
 		page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true, minutes: 120 }) });
 		const calls = [];
@@ -2075,7 +2078,12 @@ const accentProblems = (row) => {
 		if (typeof hex.props.onChange !== 'function') problems.push('the hex box has no onChange, so typing applies nothing');
 	}
 	if (buttonByKey(row, 'accent.random') === null) problems.push('the random entry is gone');
-	if (buttonByKey(row, 'accent.pick') === null) problems.push('the system picker entry is gone');
+	const well = findOne(row, (node) => node.tag === 'input' && node.props.type === 'color');
+	if (well === null) problems.push('the system picker entry is gone');
+	else if (well.props['aria-label'] !== 'accent.pick') problems.push('the colour well is not named (aria-label ' + JSON.stringify(well.props['aria-label']) + ')');
+	const commit = buttonByKey(row, 'accent.apply');
+	if (commit === null) problems.push('no 应用 button: one drag inside the palette would become a dozen colours');
+	else if (commit.props.disabled !== true) problems.push('应用 starts enabled, so it cannot tell a draft from the applied colour');
 	if (buttonByKey(row, 'accent.clear') === null) problems.push('no way back: 恢复主题色 is not rendered');
 	return problems;
 };
@@ -2117,6 +2125,27 @@ test('w7a: the accent is presets + random + ONE custom entry (hex box + picker),
 	page.clearHookCalls();
 	accentHexBox(row).props.onBlur();
 	assert.deepEqual(page.hookCalls, [{ hook: 'AccentRow#0', value: null }], 'blur drops the draft, so the applied value takes the box back');
+
+	// m06923 (user): the well moves ITS draft only. A drag inside the operating system's palette
+	// streams a value per pixel, and writing each one straight to the store filled 最近使用 from a
+	// single gesture.
+	page.clearHookCalls();
+	findOne(row, (node) => node.tag === 'input' && node.props.type === 'color')
+		.props.onChange({ target: { value: '#123456' } });
+	assert.equal(page.sandbox.localStorage.getItem('dsh-dream-skin:accent'), '#12abef', 'a drag changes nothing in the store');
+	assert.deepEqual(page.hookCalls, [{ hook: 'ColorField#0', value: '#123456' }], 'it only moves the draft cell the well owns');
+
+	// 应用 is that one click. A pinned draft stands in for the drag the fixture cannot replay.
+	const armed = buildSettingsPage({
+		seed: { 'dsh-dream-skin:accent': '#aabbcc' },
+		hookInitials: { 'ColorField#0': '#12abef' }
+	});
+	const armedRow = armed.renderRow('dream-skin-accent');
+	const apply = buttonByKey(armedRow, 'accent.apply');
+	assert.equal(apply.props.disabled, false, 'a draft enables the commit button');
+	apply.props.onClick();
+	assert.equal(armed.sandbox.localStorage.getItem('dsh-dream-skin:accent'), '#12abef', '应用 writes the colour exactly once');
+	assert.deepEqual(armed.hookCalls, [{ hook: 'ColorField#0', value: null }], 'and drops the draft, so the well reads the applied colour back');
 
 	// The way back: one click removes the override key. Its ABSENCE is the default.
 	buttonByKey(row, 'accent.clear').props.onClick();
@@ -2424,172 +2453,92 @@ test('mutation: invoking a hook-owning helper inline reddens the hook-ownership 
 		'mutation expected: the inlined horizontal slider adds its cell to the row, so the list length tracks what the form mounts');
 });
 // ---------------------------------------------------------------------------
-// W12: the folder picker — a dialog panel, because a typed path is not a control
+// The folder comes from the OPERATING SYSTEM's chooser (m06450)
 // ---------------------------------------------------------------------------
 
-/** A rotation folder-source row, with the picker already open and its view pinned. */
-const pickerView = (view, opts) => {
-	const options = opts || {};
-	const initials = Object.assign({ 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': view }, options.hookInitials || {});
-	const page = buildSettingsPage({ code: options.code, hookInitials: initials });
+test('the host picker helper never reaches for a scope it cannot see', () => {
+	// pickFolderFromHost sits in the module factory, one scope above localeT. A call to the
+	// translator inside it throws a ReferenceError that the helper's own catch turns into
+	// "this host has no dialog" — the failure the user reported on 2026-10-29.
+	const start = CODE.indexOf('async function pickFolderFromHost(');
+	assert.ok(start > -1, 'the host picker helper is gone');
+	const end = CODE.indexOf('\n\t\t/**', start + 10);
+	const body = CODE.slice(start, end > start ? end : start + 4000);
+	assert.equal(body.indexOf('localeT'), -1, 'the helper must not reach for localeT: it is declared in the scope below');
+	assert.ok(body.indexOf('function pickFolderFromHost(title)') > -1, 'the title arrives as a parameter');
+	assert.ok(CODE.indexOf('await pickFolderFromHost(localeT("bg2.folderPick"))') > -1, 'the row hands the translated title in from its own scope');
+});
+
+test('the folder branch asks the OS chooser once and hands its answer to the row', async () => {
+	const page = buildSettingsPage({});
 	page.setState(ADV, {
 		kind: 'url',
 		url: null,
 		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '', folderCount: null, folderError: null }
 	});
-	return findOne(page.renderRow(ADV), (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
-};
+	const asked = [];
+	const bag = page.actionsOf(ADV);
+	bag.pickFolder = () => { asked.push('opened'); return Promise.resolve({ path: '/home/me/Pics' }); };
+	bag.setRotationFolder = (path) => { asked.push(path); return Promise.resolve({ files: ['a.jpg', 'b.jpg'] }); };
+	page.clearHookCalls();
+	chipByText(page.renderRow(ADV), 'bg2.folderAdd').props.onClick();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(asked, ['opened', '/home/me/Pics'],
+		'the click opens the system dialog and hands the picked folder straight to the row action — one dialog, one answer');
+});
 
-const BROWSE_VIEW = {
-	path: '/home/me/Pics',
-	crumbs: [{ name: 'me', path: '/home/me' }, { name: 'Pics', path: '/home/me/Pics' }],
-	entries: [{ name: 'Walls', path: '/home/me/Pics/Walls' }, { name: 'Travel', path: '/home/me/Pics/Travel' }],
-	truncated: false,
-	busy: false,
-	error: null
-};
-const BUSY_VIEW = { path: '', crumbs: [], entries: [], truncated: false, busy: true, error: null };
-const HOME_VIEW = { path: '/home/me', crumbs: [{ name: 'me', path: '/home/me' }], entries: [], truncated: false, busy: false, error: null };
-const UNAVAILABLE_VIEW = { path: '', crumbs: [], entries: [], truncated: false, busy: false, error: 'unavailable' };
-const READ_ERROR_VIEW = { path: '', crumbs: [], entries: [], truncated: false, busy: false, error: 'read' };
-const TRUNCATED_VIEW = { path: '/big', crumbs: [], entries: [{ name: 'a', path: '/big/a' }], truncated: true, busy: false, error: null };
-
-test('w12: the folder picker lists the child folders of where it stands and hands back that folder', () => {
-	const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': BROWSE_VIEW } });
+test('a host with no chooser says so in the row and mounts nothing in its place', async () => {
+	const page = buildSettingsPage({});
 	page.setState(ADV, {
 		kind: 'url',
 		url: null,
 		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '', folderCount: null, folderError: null }
 	});
-	const row = page.renderRow(ADV);
-	const panel = findOne(row, (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
-	assert.ok(panel, 'the picker is ONE labelled group, and one click on 新增文件夹 is all it takes to see it');
-	const text = textOf([panel]);
-	for (const key of ['bg2.dirPick', 'bg2.dirUp', 'bg2.dirChoose', 'bg2.dirCancel']) {
-		assert.ok(text.indexOf(key) !== -1, key + ' is in the panel');
-	}
-	assert.ok(text.indexOf('/home/me/Pics') !== -1, 'the panel prints the folder it is standing in');
-	const entries = findAll([panel], (node) => node.tag === 'button' && ['Walls', 'Travel'].indexOf(firstText([node])) !== -1);
-	assert.equal(entries.length, 2, 'both child folders are offered, by name');
-	assert.equal(chipByText([panel], 'bg2.dirUp').props.disabled, false, 'two crumbs deep, so there is a parent to walk up to');
-	assert.equal(chipByText([panel], 'bg2.dirChoose').props.disabled, false, 'and a folder to hand back');
-	// Nothing is typed into the panel: it is a list of buttons, one row per folder.
-	assert.equal(findAll([panel], (node) => node.tag === 'input').length, 0, 'no box to type a path into');
-
-	// A click on a child folder asks the host for ITS listing — the panel turns busy in its own cell.
+	page.actionsOf(ADV).pickFolder = () => Promise.resolve({ unavailable: true });
 	page.clearHookCalls();
-	entries[0].props.onClick();
-	assert.deepEqual(page.hookCalls.map((call) => call.hook), ['FolderPicker#0'], 'the panel owns its own view cell');
-	assert.equal(page.hookCalls[0].value.busy, true, 'and the click shows the loading state while the listing is fetched');
+	chipByText(page.renderRow(ADV), 'bg2.folderAdd').props.onClick();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'bg2.dirUnsupported'],
+		'the cleared line first, then the reason: one line in place, never a hand-built browser');
 
-	// Cancel closes the panel and writes ONE cell: the row's open flag. No folder is touched.
-	page.clearHookCalls();
-	chipByText([panel], 'bg2.dirCancel').props.onClick();
-	assert.deepEqual(page.hookCalls, [{ hook: 'WallpaperAdvancedRow#0', value: false }],
-		'取消 only closes the panel — picking a folder is a separate click');
-});
-
-test('w12: the picker names a standstill instead of offering a folder it cannot stand in', () => {
-	// Every state where 「使用此文件夹」 would hand back nothing usable keeps the button disabled, and the
-	// panel says which state it is in rather than printing an empty box.
-	const cases = [
-		['busy', BUSY_VIEW, 'bg2.dirLoading', true],
-		['no child folders', HOME_VIEW, 'bg2.dirEmpty', false],
-		['host cannot browse', UNAVAILABLE_VIEW, 'bg2.dirUnsupported', true],
-		['listing failed', READ_ERROR_VIEW, 'bg2.dirFailed', true]
-	];
-	for (const [label, view, note, disabled] of cases) {
-		const panel = pickerView(view);
-		assert.ok(panel, label + ': the panel renders');
-		const text = textOf([panel]);
-		assert.ok(text.indexOf(note) !== -1, label + ': the panel says ' + note);
-		assert.equal(chipByText([panel], 'bg2.dirChoose').props.disabled, disabled, label + ': 使用此文件夹 is ' + (disabled ? 'disabled' : 'enabled'));
-	}
-	// An error is not the same standstill as an empty folder: only one of the two lines may print.
-	assert.equal(textOf([pickerView(UNAVAILABLE_VIEW)]).indexOf('bg2.dirEmpty'), -1, 'a failed listing is not an empty folder');
-	assert.equal(textOf([pickerView(HOME_VIEW)]).indexOf('bg2.dirFailed'), -1, 'and an empty folder is not a failure');
-	assert.ok(textOf([pickerView(TRUNCATED_VIEW)]).indexOf('bg2.dirTruncated') !== -1, 'a truncated listing says so');
-	assert.equal(chipByText([pickerView(TRUNCATED_VIEW)], 'bg2.dirChoose').props.disabled, false, 'a truncated listing can still be used');
-});
-
-test('w12: the picker is the ONLY folder control — the path is never typed', () => {
-	const panel = pickerView(BROWSE_VIEW);
-	assert.ok(panel, 'the panel is open in this case');
-	const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#0': false } });
-	page.setState(ADV, {
+	// A host whose service throws is the same answer as one that reports nothing.
+	const silent = buildSettingsPage({});
+	silent.setState(ADV, {
 		kind: 'url',
 		url: null,
-		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 12, folderError: null }
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '', folderCount: null, folderError: null }
 	});
-	const row = page.renderRow(ADV);
-	assert.equal(findAll(row, (node) => node.tag === 'input' && (node.props.type === 'text' || node.props.type === undefined)).length, 0,
-		'no text box anywhere in the folder branch');
-	assert.equal(findAll(row, (node) => node.tag === 'textarea').length, 0, 'and no textarea either');
-	assert.ok(chipByText(row, 'bg2.folderAdd'), '新增文件夹 is the way in');
-	assert.ok(chipByText(row, 'bg2.pathRemove'), '删除 is the only operation on a saved folder');
+	silent.actionsOf(ADV).pickFolder = () => Promise.reject(new Error('no chooser'));
+	silent.clearHookCalls();
+	chipByText(silent.renderRow(ADV), 'bg2.folderAdd').props.onClick();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(silent.hookCalls.map((call) => call.value), [null, 'bg2.dirUnsupported'],
+		'a throwing service is reported in the row as well, never only swallowed');
 });
 
-test('mutation: letting 使用此文件夹 fire without a folder reddens the standstill case', () => {
-	const anchor = 'disabled: view.busy || view.path === "" || view.error !== null,';
-	assert.equal(countOf(CODE, anchor), 1, 'the 使用此文件夹 disabled guard must occur exactly once');
-	const mutated = CODE.replace(anchor, 'disabled: false,');
+test('mutation: opening a panel instead of saying so reddens the no-chooser case', async () => {
+	const anchor = 'setFormHint("bg2.dirUnsupported");';
+	assert.equal(countOf(CODE, anchor), 2, 'both refusals (no function, refused answer) print the same reason');
+	const mutated = CODE.split(anchor).join('setFormHint(null);');
 	assert.notEqual(mutated, CODE, 'mutation ㉖ has to change the bundle');
-	const problems = [BUSY_VIEW, UNAVAILABLE_VIEW, READ_ERROR_VIEW]
-		.filter((view) => chipByText([pickerView(view, { code: mutated })], 'bg2.dirChoose').props.disabled === false);
-	assert.equal(problems.length, 3, 'mutation expected: the three standstills now offer a folder they do not have');
-});
-
-// ---------------------------------------------------------------------------
-// The picker after a failure, and a refusal that arrives late (audit P1s)
-// ---------------------------------------------------------------------------
-
-/** A failed attempt on a CHILD folder: the panel is still standing in its parent. */
-const STUCK_VIEW = {
-	path: '/home/me/Pics',
-	crumbs: [{ name: 'me', path: '/home/me' }, { name: 'Pics', path: '/home/me/Pics' }],
-	entries: [{ name: 'Walls', path: '/home/me/Pics/Walls' }],
-	truncated: false,
-	busy: false,
-	error: 'read',
-	retry: '/home/me/Pics/Private'
-};
-
-test('the picker keeps the folder it stands in when a listing fails, and 重试 asks for that folder again', () => {
-	const panel = pickerView(STUCK_VIEW);
-	assert.ok(panel, 'the panel still renders while it is in the error state');
-	assert.ok(textOf([panel]).indexOf('bg2.dirFailed') !== -1, 'the reason is printed in place, not only in an alert');
-	assert.equal(chipByText([panel], 'bg2.dirChoose').props.disabled, true, 'a standstill still cannot hand a folder back');
-	assert.equal(chipByText([panel], 'bg2.dirUp').props.disabled, false,
-		'and 上一级 keeps working, because the standing folder was never dropped');
-	assert.ok(chipByText([panel], 'bg2.dirRetry'), '重试 is offered — the panel is not a dead end');
-
-	// No browse capability at all is not a retryable state: the button would only fail again.
-	const offline = pickerView(Object.assign({}, STUCK_VIEW, { path: '', crumbs: [], entries: [], error: 'unavailable', retry: null }));
-	assert.equal(chipByText([offline], 'bg2.dirRetry'), null, 'a host that cannot browse is told so, without a 重试 button');
-});
-
-test('重试 re-reads the folder that failed — not the one the panel is standing in', () => {
-	const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': STUCK_VIEW } });
+	const page = buildSettingsPage({ code: mutated });
 	page.setState(ADV, {
 		kind: 'url',
 		url: null,
-		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 12, folderError: null }
+		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '', folderCount: null, folderError: null }
 	});
-	const row = page.renderRow(ADV);
-	const panel = findOne(row, (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
-	assert.ok(panel, 'the panel is open in this case');
+	page.actionsOf(ADV).pickFolder = () => Promise.resolve({ unavailable: true });
 	page.clearHookCalls();
-	chipByText([panel], 'bg2.dirRetry').props.onClick();
-	assert.deepEqual(page.hookCalls, [{ hook: 'FolderPicker#0', value: {
-		path: '/home/me/Pics',
-		crumbs: STUCK_VIEW.crumbs,
-		entries: STUCK_VIEW.entries,
-		truncated: false,
-		busy: true,
-		error: null,
-		retry: null
-	} }], '重试 turns the panel busy again while keeping the folder it stands in');
+	chipByText(page.renderRow(ADV), 'bg2.folderAdd').props.onClick();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, null],
+		'mutation expected: the row clears the line and then says nothing, so the click looks like it did nothing at all');
 });
+
+
+// ---------------------------------------------------------------------------
+// A refusal that arrives asynchronously has to land on the row (audit P1)
+// ---------------------------------------------------------------------------
 
 test('an ASYNCHRONOUS refusal lands on the row, not only in a dismissed alert', async () => {
 	const page = buildSettingsPage({});
@@ -2613,28 +2562,8 @@ test('an ASYNCHRONOUS refusal lands on the row, not only in a dismissed alert', 
 		'and the refusal that came back is printed where the other warnings live');
 });
 
-test('mutation: dropping the standing folder or the late refusal reddens these two cases', async () => {
+test('mutation: swallowing the late refusal reddens the asynchronous case', async () => {
 	const tick = () => new Promise((resolve) => setImmediate(resolve));
-	const keepAnchor = 'setView({ path: held.path, crumbs: held.crumbs, entries: held.entries, truncated: held.truncated, busy: false, error: kind, retry: typeof target === "string" ? target : null });';
-	assert.equal(countOf(CODE, keepAnchor), 1, 'the failure view must be written in exactly one place');
-	const dropped = CODE.replace(keepAnchor, keepAnchor.replace('path: held.path, crumbs: held.crumbs, entries: held.entries', 'path: "", crumbs: [], entries: []'));
-	assert.notEqual(dropped, CODE, 'mutation ㉗ has to change the bundle');
-	const broken = buildSettingsPage({ code: dropped, hookInitials: { 'WallpaperAdvancedRow#0': true, 'FolderPicker#0': STUCK_VIEW } });
-	broken.setState(ADV, {
-		kind: 'url',
-		url: null,
-		rotation: { on: true, mode: 'sequential', minutes: 30, urls: [], source: 'folder', folder: '/home/me/Pics', folderCount: 12, folderError: null }
-	});
-	broken.actionsOf(ADV).listFolders = () => Promise.resolve({ error: 'read' });
-	const brokenRow = broken.renderRow(ADV);
-	const brokenPanel = findOne(brokenRow, (node) => node.props && node.props.role === 'group' && node.props['aria-label'] === 'bg2.dirPick');
-	broken.clearHookCalls();
-	chipByText([brokenPanel], 'bg2.dirRetry').props.onClick();
-	await tick();
-	assert.equal(broken.hookCalls.length, 2, 'the retry writes the busy view and then the failure view');
-	assert.equal(broken.hookCalls[1].value.path, '',
-		'mutation expected: the failed retry forgets the folder the panel stands in, so 上一级 has nowhere to go — the dead end the fix removes');
-
 	const reportAnchor = 'if (answer && answer.ok === false) setFormHint(answer.reason || null);';
 	assert.equal(countOf(CODE, reportAnchor), 1, 'the late-refusal reporter must occur exactly once');
 	const silent = CODE.replace(reportAnchor, 'if (answer && answer.ok === false) setFormHint(null);');
@@ -2677,13 +2606,11 @@ test('w13: the form selector and the single-action buttons size to their own tex
 	assert.equal(random.props.style.alignSelf, undefined,
 		'随机 shares the preset row now (设计稿 line 7), so it is not a column child and needs no alignment');
 		// 设计稿 line 60: the interval number and its unit are ONE field, so both size to themselves.
-	const rotationPage = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#7': 'rotation' } });
+	const rotationPage = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#6': 'rotation' } });
 	rotationPage.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true }) });
 	const rotationSelects = findAll(rotationPage.renderRow(ADV), (node) => node.tag === 'select');
-	assert.equal(rotationSelects.length, 2, 'the form selector and the interval unit');
-	for (const node of rotationSelects) {
-		assert.equal(node.props.style.flex, '0 0 auto', 'a selector sizes to its longest option — both of them');
-	}
+	assert.equal(rotationSelects.length, 1, 'the interval unit became chips (m06450), so only the form selector is left');
+	assert.equal(rotationSelects[0].props.style.flex, '0 0 auto', 'and it sizes to its longest option');
 
 	// The line this case must NOT flatten: two material cards sharing the row is the design.
 	const glass = page.renderRow('dream-skin-glass');
@@ -2692,18 +2619,18 @@ test('w13: the form selector and the single-action buttons size to their own tex
 });
 
 test('mutation: a stretched selector or a stretched single button reddens the width case', () => {
-	const flexAnchor = 'flex: "0 0 auto",';
+	const flexAnchor = 'flex: "0 0 auto",\n\t\t\t\tmaxWidth: "100%",';
 	assert.equal(countOf(CODE, flexAnchor), 1, 'the selector\'s own flex must be declared in exactly one place');
-	const stretched = CODE.replace(flexAnchor, 'flex: 1,');
+	const stretched = CODE.replace(flexAnchor, 'flex: 1,\n\t\t\t\tmaxWidth: "100%",');
 	assert.notEqual(stretched, CODE, 'mutation ㉙ has to change the bundle');
 	const page = buildSettingsPage({ code: stretched });
 	const select = findOne(page.renderRow(ADV), (node) => node.tag === 'select');
 	assert.equal(select.props.style.flex, 1,
 		'mutation expected: the selector borrows flex: 1 again and fills the whole row — the very complaint this case is about');
 
-	const alignAnchor = 'style: { ...styles.button, ...styles.buttonDanger, alignSelf: "flex-start" },';
+	const alignAnchor = '...styles.buttonDanger, alignSelf: "flex-start", marginTop: "4px" },';
 	assert.equal(countOf(CODE, alignAnchor), 1, 'the danger button\'s alignment must be declared in exactly one place');
-	const unaligned = CODE.replace(alignAnchor, 'style: { ...styles.button, ...styles.buttonDanger },');
+	const unaligned = CODE.replace(alignAnchor, '...styles.buttonDanger, marginTop: "4px" },');
 	assert.notEqual(unaligned, CODE, 'mutation ㉚ has to change the bundle');
 	const other = buildSettingsPage({ code: unaligned });
 	const clear = findOne(other.renderRow(ADV), (node) => node.tag === 'button' && node.props.children === 'bg2.remove');
