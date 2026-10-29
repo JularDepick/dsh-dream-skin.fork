@@ -2456,17 +2456,19 @@ test('mutation: invoking a hook-owning helper inline reddens the hook-ownership 
 // The folder comes from the OPERATING SYSTEM's chooser (m06450)
 // ---------------------------------------------------------------------------
 
-test('the host picker helper never reaches for a scope it cannot see', () => {
-	// pickFolderFromHost sits in the module factory, one scope above localeT. A call to the
-	// translator inside it throws a ReferenceError that the helper's own catch turns into
-	// "this host has no dialog" — the failure the user reported on 2026-10-29.
-	const start = CODE.indexOf('async function pickFolderFromHost(');
-	assert.ok(start > -1, 'the host picker helper is gone');
-	const end = CODE.indexOf('\n\t\t/**', start + 10);
-	const body = CODE.slice(start, end > start ? end : start + 4000);
-	assert.equal(body.indexOf('localeT'), -1, 'the helper must not reach for localeT: it is declared in the scope below');
-	assert.ok(body.indexOf('function pickFolderFromHost(title)') > -1, 'the title arrives as a parameter');
-	assert.ok(CODE.indexOf('await pickFolderFromHost(localeT("bg2.folderPick"))') > -1, 'the row hands the translated title in from its own scope');
+test('the folder branch borrows DSH\'s own chooser and raises none of its own', () => {
+	// The plugin used to ask its host half for a Windows/WSL folder dialog. That window opened
+	// BEHIND the browser (measured 2026-10-29), so the button read as dead while the request sat
+	// open for its ten-minute budget. The row now calls the service the host itself uses for
+	// 新增工作空间 — one owner for the dialog, and no second one of ours to fall back to.
+	assert.equal(CODE.indexOf('async function pickFolderFromHost('), -1, 'the plugin raises no folder dialog of its own');
+	assert.equal(CODE.indexOf('"folder-pick"'), -1, 'and asks its host half for none either');
+	const start = CODE.indexOf('pickFolder: async () => {');
+	assert.ok(start > -1, 'the row still owns the pickFolder action');
+	const body = CODE.slice(start, start + 800);
+	assert.ok(body.indexOf('uiWorkspaceService()') > -1, 'the dialog comes from the workspace service');
+	assert.ok(body.indexOf('service.pickDirectory()') > -1, 'through pickDirectory(), the same call the host makes');
+	assert.equal(body.indexOf('fetch('), -1, 'no plugin-side request stands in for it');
 });
 
 test('the folder branch asks the OS chooser once and hands its answer to the row', async () => {
