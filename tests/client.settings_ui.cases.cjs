@@ -2633,3 +2633,52 @@ test('mutation: dropping the standing folder or the late refusal reddens these t
 	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation', null],
 		'mutation expected: the refused click leaves only the alert, and the row pretends the rotation armed');
 });
+
+// ---------------------------------------------------------------------------
+// Control width (m05444): a control sizes to its own text, never to the panel
+// ---------------------------------------------------------------------------
+
+test('w13: the form selector and the single-action buttons size to their own text', () => {
+	const page = buildSettingsPage({});
+	const adv = page.renderRow(ADV);
+	const select = findOne(adv, (node) => node.tag === 'select');
+	assert.ok(select, 'the 背景形式 selector renders');
+	assert.equal(select.props.style.flex, '0 0 auto', 'the selector sizes to its longest option — never flex: 1 across the row');
+	assert.equal(select.props.style.minWidth, undefined, 'and it carries no 220px floor borrowed from the link box beside it');
+	assert.equal(select.props.style.width, undefined, 'nor any fixed width');
+
+	const clear = findOne(adv, (node) => node.tag === 'button' && node.props.children === 'bg2.remove');
+	assert.ok(clear, '清除壁纸 renders');
+	assert.equal(clear.props.style.alignSelf, 'flex-start',
+		'清除壁纸 is a direct child of a column flex box, so without alignSelf it stretches to the panel width');
+
+	const accent = page.renderRow('dream-skin-accent');
+	const random = findOne(accent, (node) => node.tag === 'button' && node.props.children === 'accent.random');
+	assert.ok(random, '随机 renders');
+	assert.equal(random.props.style.alignSelf, 'flex-start', '随机 is a direct child of a column box too');
+
+	// The line this case must NOT flatten: two material cards sharing the row is the design.
+	const glass = page.renderRow('dream-skin-glass');
+	const cards = findAll(glass, (node) => node.tag === 'button' && node.props.style && node.props.style.flex === '1 1 0');
+	assert.equal(cards.length, 2, 'the two material cards still split one line — an equal split is the design, not a wide control');
+});
+
+test('mutation: a stretched selector or a stretched single button reddens the width case', () => {
+	const flexAnchor = 'flex: "0 0 auto",';
+	assert.equal(countOf(CODE, flexAnchor), 1, 'the selector\'s own flex must be declared in exactly one place');
+	const stretched = CODE.replace(flexAnchor, 'flex: 1,');
+	assert.notEqual(stretched, CODE, 'mutation ㉙ has to change the bundle');
+	const page = buildSettingsPage({ code: stretched });
+	const select = findOne(page.renderRow(ADV), (node) => node.tag === 'select');
+	assert.equal(select.props.style.flex, 1,
+		'mutation expected: the selector borrows flex: 1 again and fills the whole row — the very complaint this case is about');
+
+	const alignAnchor = 'style: { ...styles.button, ...styles.buttonDanger, alignSelf: "flex-start" },';
+	assert.equal(countOf(CODE, alignAnchor), 1, 'the danger button\'s alignment must be declared in exactly one place');
+	const unaligned = CODE.replace(alignAnchor, 'style: { ...styles.button, ...styles.buttonDanger },');
+	assert.notEqual(unaligned, CODE, 'mutation ㉚ has to change the bundle');
+	const other = buildSettingsPage({ code: unaligned });
+	const clear = findOne(other.renderRow(ADV), (node) => node.tag === 'button' && node.props.children === 'bg2.remove');
+	assert.equal(clear.props.style.alignSelf, undefined,
+		'mutation expected: without alignSelf the column box stretches 清除壁纸 across the panel');
+});
