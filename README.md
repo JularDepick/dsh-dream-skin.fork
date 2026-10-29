@@ -335,7 +335,9 @@ dsh web   # 重启后恢复官方外观
 > **第三方目录（DSH-Store）现状**：`AI-Scarlett/DSH-Store#1411` 曾把本插件标为 catalog blocked。其中「`lib/client.js` 超过其审核面单文件上限」一条，已由对方 2026-10-15 的追评收回，原文与正文 sha256 存档在 [`docs/evidence/dsh-store-1411-followup-2026-10-15.md`](./docs/evidence/dsh-store-1411-followup-2026-10-15.md)；其追评留下的「扫描器证明不了 `require` 的有限调用集」由 10.16.0 处理（全文见 [docs/release-notes.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/release-notes.md)）。**本仓库不承诺收录状态会变绿**——是否放行取决于对方的审查流程。
 
 <details>
-<summary><b>📜 逐版本更新记录（10.29.0 → 9.9.0）</b></summary>
+<summary><b>📜 逐版本更新记录（10.30.0 → 9.9.0）</b></summary>
+
+**版本 10.30.0（2026-10-30）**：**采纳外部贡献者 @ppy-web 的 PR #128 —— 8 个设置滑杆统一成同一套自绘 Range（透明原生 `input[type=range]` + 自绘轨道/填充/拇指）。** 保留 `type=range`、min/max/step、键盘方向键/Home/End、`aria-valuetext`、`prefers-reduced-motion` 与 focus-visible 轮廓；轨道点击按位置跳转，拇指拖拽不跳动，预览仍只由指针触发。我们补了 6 条组件级回归测试（`tests/client.slider.test.cjs`）。回归门 **640/640**（10.29.0 为 634，+6），质量审计 **229/229**（217 调色 + 12 工艺）。**边界**：测试是组件级不是浏览器级；`touch-action:none` 会让触屏在滑杆区域起手的纵向滚动被吞掉；没有 forced-colors 兜底；bundle 538,272 B，距 544 KiB 预算余量 18,784 B。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.30.0`。
 
 **版本 10.29.0（2026-10-29）**：**采纳外部贡献者 @ppy-web 的实时预览（PR #126）—— 拖「壁纸透明度 / 壁纸模糊」时，设置面板让出画面。** 调壁纸的时候，设置弹窗和遮罩正好压在对话框上，想确认"这张图会不会影响文字可读性"只能反复开关设置；他的做法是拖动这两个滑杆期间把面板和遮罩藏起来、只把**正在拖的那一行**做成一块浮起的芯片留在画面上，松手/取消/切窗口/`Escape` 都恢复。实现用的是自有属性标记三层节点（`root` / `path` / `row`），**原生滑杆自始至终没被移动或重新挂载**（那会打断正在进行的拖动）；遮罩是弹窗的**兄弟节点**（本机宿主 `0.2.0-rc.1` 的设置页是 `div[role="presentation"]` 里并排放 `mask` 与 `role="dialog"`），所以隐藏范围向上爬到那层包装——只藏弹窗会留下一层压暗的罩子。我复核后去掉了一处：**预览只由指针触发**，不再由方向键触发（给含焦点的子树加 `visibility: hidden` 会让里面获得焦点的元素失焦，键盘用户会"按一下闪一下、再也调不动"）。PR 里第二半（自制滑块外观）这一版**没有采纳**：它只作用于这两行，同一面板另外 6 个滑杆仍是原生控件，一个面板两套样式是设计语言的倒退——已把"要换就 8 行一起换、并去掉与气泡重复的常驻数值"写回 PR 邀请他再来。回归门 **634/634**（10.28.1 为 631，+3 是这条的守卫），质量审计 **229/229**（217 调色 + 12 工艺）。更新请写确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.29.0`。
 
