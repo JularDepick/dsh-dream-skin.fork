@@ -2540,7 +2540,7 @@ test('10.5.0: the settings-nav icon hook is idempotent and self-reports through 
 	const foreignMarked = [];
 	const themeShopMarked = [];
 	// Labels measured live on host 0.2.0-rc.1: OUR row is the section WE register, with
-	// `label: "Theme / 外观"` — a string this repo declares. The bare 「皮肤」 row
+	// `label: "个性化皮肤"` — a string this repo declares. The bare 「皮肤」 row
 	// belongs to a THIRD-PARTY plugin (@linxin666/dsh-client-ui-skin-center), and marking
 	// it was the L1 walk-on: our palette over somebody else's icon. `Theme Shop` is the
 	// T7 walk-on: a plain substring test for "Theme" painted it even though this repo
@@ -2548,7 +2548,7 @@ test('10.5.0: the settings-nav icon hook is idempotent and self-reports through 
 	const buttons = [
 		{ textContent: '常规', setAttribute(k, v) { this[k] = v; }, removeAttribute(k) { delete this[k]; } },
 		{
-			textContent: 'Theme / 外观',
+			textContent: '个性化皮肤',
 			setAttribute(k, v) { this[k] = v; if (k === 'data-dsh-dream-skin-nav') marked.push(this); },
 			removeAttribute(k) { if (k === 'data-dsh-dream-skin-nav') { const i = marked.indexOf(this); if (i >= 0) marked.splice(i, 1); } delete this[k]; }
 		},
@@ -2602,7 +2602,7 @@ test('10.5.0: the settings-nav icon hook is idempotent and self-reports through 
 	assert.equal(liveSheets().length, 1, 'one icon sheet on the first evaluation');
 	assert.equal(navObservers.count, 1, 'one body observer on the first evaluation');
 	assert.equal(marked.length, 1, 'exactly one nav row is marked');
-	assert.equal(marked[0] && marked[0].textContent, 'Theme / 外观', 'and the row we marked is the section WE registered');
+	assert.equal(marked[0] && marked[0].textContent, '个性化皮肤', 'and the row we marked is the section WE registered');
 	assert.deepEqual(foreignMarked.map((b) => b.textContent), [], 'the third-party 皮肤 row is not marked');
 	assert.deepEqual(themeShopMarked.map((b) => b.textContent), [], 'T7: a `Theme Shop` row sharing a word with our label is not marked either');
 	const nav = h.window.__DSH_DREAM_SKIN_NAV__;
@@ -2670,7 +2670,7 @@ test('10.5.0: the nav hook stays live when the window gets no animation frames',
 	// __DSH_DREAM_SKIN_NAV__ cannot tell idle from dead. The timer below is what
 	// keeps the hook honest; this case pins it by never firing the frame.
 	const buttons = [{
-		textContent: 'Theme / 外观',
+		textContent: '个性化皮肤',
 		setAttribute(k, v) { this[k] = v; },
 		removeAttribute(k) { delete this[k]; }
 	}];
@@ -2722,9 +2722,9 @@ test('10.5.0: the nav hook stays live when the window gets no animation frames',
 		'adoption is not a no-op: the adopted sheet carries the marker CSS');
 	assert.equal(h.window.__DSH_DREAM_SKIN_NAV__.sheets, 1, 'and the self-report counts the one real sheet');
 
-	// A second "Theme / 外观" button appears while no frame will ever arrive.
+	// A second "个性化皮肤" button appears while no frame will ever arrive.
 	buttons.push({
-		textContent: 'Theme / 外观',
+		textContent: '个性化皮肤',
 		setAttribute(k, v) { this[k] = v; },
 		removeAttribute(k) { delete this[k]; }
 	});
@@ -2749,7 +2749,7 @@ test('10.5.0: a nav hook that ran before <body> existed arms itself on DOMConten
 	const observers = [];
 	const listeners = [];
 	const buttons = [
-		{ textContent: 'Theme / 外观', setAttribute(k, v) { this[k] = v; }, removeAttribute(k) { delete this[k]; } }
+		{ textContent: '个性化皮肤', setAttribute(k, v) { this[k] = v; }, removeAttribute(k) { delete this[k]; } }
 	];
 	const SHEET = 'dsh-dream-skin-nav-icon';
 	const doc = {
@@ -2783,7 +2783,7 @@ test('10.5.0: a nav hook that ran before <body> existed arms itself on DOMConten
 	listeners[0].fn();
 	assert.equal(observers.length, 1, 'the deferred arm installs the body observer');
 	assert.equal(h.window.__DSH_DREAM_SKIN_NAV__.armed, true, 'only now does the report say the hook is live');
-	assert.equal(h.window.__DSH_DREAM_SKIN_NAV__.marked, 1, 'the pending "Theme / 外观" button gets marked on the arm pass');
+	assert.equal(h.window.__DSH_DREAM_SKIN_NAV__.marked, 1, 'the pending "个性化皮肤" button gets marked on the arm pass');
 
 	// A second copy on the now-armed page must not double-observe.
 	h.rerun();
@@ -2800,7 +2800,7 @@ test('10.5.0: a nav hook that ran before <body> existed arms itself on DOMConten
 function makeNavHookDoc(SHEET) {
 	const marked = [];
 	const buttons = [{
-		textContent: 'Theme / 外观',
+		textContent: '个性化皮肤',
 		// Presence tracker, faithful to setAttribute semantics: setting the same
 		// attribute on an already-marked row does not duplicate anything. (An
 		// unconditional push here would grow with every sync pass and make

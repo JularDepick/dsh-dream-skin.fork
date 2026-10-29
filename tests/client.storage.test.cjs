@@ -339,7 +339,7 @@ test('the empty image-link tab says why the background is blank, and stays quiet
 	assert.equal(hasText(seen, 'bg2.urlEmpty'), false, 'the local-image tab is not this tab and must stay silent');
 
 	// ① the row never renders (silent degradation restored)
-	const never = CODE.replace('kind === "url" && !url ? NoteLine({', 'null ? NoteLine({');
+	const never = CODE.replace('!url ? NoteLine({ text: t("bg2.urlEmpty")', 'false ? NoteLine({ text: t("bg2.urlEmpty")');
 	assert.notEqual(never, CODE, 'mutation ① has to change the bundle');
 	const h1 = buildSandbox({ code: never });
 	const n1 = [];
@@ -349,7 +349,7 @@ test('the empty image-link tab says why the background is blank, and stays quiet
 		'① with the guard forced false the row disappears — this is the failure the gate exists to see');
 
 	// ② the row always renders (a warning nobody can turn off)
-	const always = CODE.replace('kind === "url" && !url ? NoteLine({', 'kind === "url" ? NoteLine({');
+	const always = CODE.replace('!url ? NoteLine({ text: t("bg2.urlEmpty")', 'true ? NoteLine({ text: t("bg2.urlEmpty")');
 	assert.notEqual(always, CODE, 'mutation ② has to change the bundle');
 	const h2 = buildSandbox({ code: always });
 	const n2 = [];
@@ -738,7 +738,7 @@ test('the folder controls show for the folder source only, explain each failure 
 	assert.ok(hasText(seen, 'bg2.rotationList'), 'links source: the list box is back');
 	assert.equal(find(seen, (n) => n.type === 'input' && n.props.type === 'text'), undefined, 'links source: no path box');
 	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ folder: '', folderCount: null }), props);
-	assert.equal(hasText(seen, 'bg2.rotationNow'), false, 'a folder source with no folder saved has no "next now" yet');
+	assert.ok(hasText(seen, 'bg2.rotationNow'), '轮播设置 keeps 切换到下一张 even before a folder is saved — settings-theme-ui.md line 61 puts it in the group, not behind a count');
 	assert.ok(hasText(seen, 'bg2.pathEmpty'), 'no folder yet reads as an empty list, not as a blank panel');
 	assert.ok(hasText(seen, 'bg2.folderAdd'), 'and the control that fixes it survives the empty state — the branch is not a dead end');
 	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', { ...state({}), kind: 'gradient' }, props);
@@ -756,11 +756,13 @@ test('every string the folder error map points at is defined in the dictionaries
 	for (const key of used) assert.ok(zh.includes(key), `${key} is defined`);
 });
 
-test('a folder source calls its in-order mode "by folder name"; a link list keeps "in order"', async () => {
+test('the order chips are the design\'s two, and both pool sources read the same', async () => {
 	const h = buildSandbox();
 	const nodes = [];
 	h.factory(makeRequire({ nodes })).apply(makeApplyContext(h));
 	await flush();
+	assert.equal(CODE.indexOf('bg2.rotationByFolder'), -1,
+		'the third order label is gone from the bundle — settings-theme-ui.md line 58 draws 按顺序轮播 / 随机顺序 and nothing else');
 	const calls = [];
 	const props = {
 		setRotation() {}, setRotationList() {}, setRotationSource() {}, setRotationFolder() {}, setRotationMinutes() {}, rotateNow() {},
@@ -769,14 +771,14 @@ test('a folder source calls its in-order mode "by folder name"; a link list keep
 	const rot = (over) => ({ on: true, mode: 'sequential', minutes: 30, urls: ['https://a.example/1.jpg', 'https://a.example/2.jpg'], source: 'folder', folder: '/Users/me/Pictures', folderCount: 12, folderError: null, ...over });
 	const state = (over) => ({ kind: 'url', url: null, gradient: null, history: [], rotation: rot(over) });
 	const buttonWith = (seen, text) => seen.find((n) => n.type === 'button' && Array.isArray(n.props.children) && n.props.children[0] === text);
+	const orderChips = (seen) => seen
+		.filter((n) => n.type === 'button' && Array.isArray(n.props.children) && (n.props.children[0] === 'bg2.rotationSequential' || n.props.children[0] === 'bg2.rotationRandom'))
+		.map((n) => n.props.children[0]);
 
 	let seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({}), props);
-	assert.ok(buttonWith(seen, 'bg2.rotationByFolder'), 'folder source: the in-order mode reads "by folder name"');
-	assert.equal(buttonWith(seen, 'bg2.rotationSequential'), undefined, 'and the plain "in order" label is not there too');
-	assert.ok(buttonWith(seen, 'bg2.rotationRandom'), 'random stays');
-	buttonWith(seen, 'bg2.rotationByFolder').props.onClick();
+	assert.deepEqual(orderChips(seen), ['bg2.rotationSequential', 'bg2.rotationRandom'], 'folder source: 按顺序轮播 then 随机顺序');
+	buttonWith(seen, 'bg2.rotationSequential').props.onClick();
 	assert.deepEqual(calls, [['setRotationMode', 'sequential']], 'it is the stored sequential mode, no new value');
 	seen = render(h, nodes, 'dream-skin-wallpaper-advanced', state({ source: 'links' }), props);
-	assert.ok(buttonWith(seen, 'bg2.rotationSequential'), 'links source: the plain "in order" label');
-	assert.equal(buttonWith(seen, 'bg2.rotationByFolder'), undefined, 'links have no folders to name');
+	assert.deepEqual(orderChips(seen), ['bg2.rotationSequential', 'bg2.rotationRandom'], 'links source reads the same two chips: the design has ONE settings group for both');
 });

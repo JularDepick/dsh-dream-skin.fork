@@ -144,7 +144,7 @@ test('the bundle registers the seven item rows exactly once each, and orders the
 	assert.ok(page.section, 'a "settings.section" registration must exist');
 	assert.equal(page.section.desc.id, 'dream-skin');
 	assert.equal(page.section.desc.order, 10);
-	assert.equal(page.section.desc.label, 'Theme / 外观', 'the settings nav label is a 钉点: other gates match the whole string');
+	assert.equal(page.section.desc.label, '个性化皮肤', 'the settings nav label is a 钉点: other gates match the whole string');
 	assert.equal(page.section.desc.locale, 'settings.dreamSkin');
 	assert.deepEqual(page.section.desc.children, { 'settings.dreamSkin.item': { kind: 'list', scope: 'root' } },
 		'the section must still declare one root-scoped list child, or the rows have nowhere to mount');
@@ -179,7 +179,7 @@ test('the default panel carries one control family per group, and only the glass
 	const page = buildSettingsPage({});
 	const section = page.renderSection();
 	const types = inputTypes(section);
-	assert.equal(types.filter((type) => type === 'range').length, 5, 'five sliders on a default panel');
+	assert.equal(types.filter((type) => type === 'range').length, 8, 'eight sliders: the five glass ones plus the three framing rows of 固定图片');
 	// W7a: five switches — the three 「单独设置…」 gates (sidebar / composer / popup), the
 	// low-power pin and the advanced row's auto-dim.
 	assert.equal(types.filter((type) => type === 'checkbox').length, 5, 'five switches: three 「单独设置」 gates, low power, auto-dim');
@@ -187,7 +187,7 @@ test('the default panel carries one control family per group, and only the glass
 	assert.equal(types.filter((type) => type === 'color').length, 1, 'one system colour picker (the accent)');
 	// W7a: the accent's hex entry is the panel's only TYPED control, so the total is 13 + 1.
 	assert.equal(types.filter((type) => type === 'text').length, 1, 'one hex box: the only place a colour can be typed');
-	assert.equal(types.length, 14, 'the panel total moved — a control was added or dropped');
+	assert.equal(types.length, 17, 'the panel total moved — a control was added or dropped');
 
 	// Which group owns which family is the part a regrouping round actually moves, so it is named.
 	// W7a: every 「单独设置」 gate sits DIRECTLY ABOVE the slider it owns (that slider is unmounted
@@ -195,8 +195,8 @@ test('the default panel carries one control family per group, and only the glass
 	assert.deepEqual(inputTypes(page.renderRow('dream-skin-glass')),
 		['range', 'range', 'checkbox', 'range', 'checkbox', 'range', 'checkbox', 'range', 'checkbox'],
 		'the glass group owns all five sliders and four of the five switches, one gate per slider');
-	assert.deepEqual(inputTypes(page.renderRow(ADV)), ['file', 'checkbox'],
-		'W8: with 背景形式=固定图片 the row offers the local picker even before a picture is chosen, plus its auto-dim switch — framing still waits for a picture');
+	assert.deepEqual(inputTypes(page.renderRow(ADV)), ['file', 'range', 'range', 'range', 'checkbox'],
+		'固定图片 offers the local picker, the three framing rows and its auto-dim switch — 设计稿 44 mounts 位置与缩放 with the form, picture or not');
 	for (const id of ['dream-skin', 'dream-skin-accent', 'dream-skin-wallpaper', 'dream-skin-packs']) {
 		assert.deepEqual(rangeInputs(page.renderRow(id)), [], id + ' must stay slider-free on a default panel');
 	}
@@ -258,13 +258,13 @@ test('固定图片 (图片链接): the link box, the refresh switch, and nothing
 	// makes them exclusive — before it, both pairs printed in the same row.
 	assert.deepEqual(pressedChips(row), [
 		['bg2.url', true], ['bg2.local', false],
-		['bg2.fillCover', true], ['bg2.fillContain', false], ['bg2.fillBlur', false]
-	], 'the fixed picture\'s source pair and then the shared fill chips, each mirroring the store');
+		['bg2.fillCover', true], ['bg2.fillBlur', false], ['bg2.fillContain', false]
+	], 'the fixed picture\'s source pair and then the fill chips in the design order (裁剪 / 模糊 / 完整), each mirroring the store');
 	assert.equal(chipByText(row, 'bg2.rotationSourceLinks'), null, 'no slideshow source chips under a fixed picture');
 	assert.equal(findOne(row, (node) => node.tag === 'textarea'), null,
 		'nor a link list: that box edits the slideshow pool, which this form does not have');
 
-	// Framing only makes sense over a picture, and a stored URL IS one.
+	// 设计稿 line 44: 位置与缩放 is mounted with the picture form, and a stored URL is one.
 	assert.deepEqual(rangeInputs(row).map((node) => firstText([node.parent.children[0]])),
 		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
 		'with a URL stored the framing sliders appear (horizontal / vertical / zoom)');
@@ -286,30 +286,30 @@ test('gradient kind: the preset grid replaces the link box, and the fill selecto
 	assert.deepEqual(rangeInputs(row), [], 'no framing sliders without a picture');
 });
 
-test('image kind: the fill selector is there, framing waits for an actual picture', () => {
+test('image kind: the fill selector and the framing group are mounted with the form', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'image', hasImage: false });
 	const withoutPicture = page.renderRow(ADV);
 	assert.ok(textOf(withoutPicture).includes('bg2.fill'), 'the local-image tab offers the fill selector');
-	assert.deepEqual(rangeInputs(withoutPicture), [], 'no picture → no framing group');
-
-	// The gate is `hasImage`, a STORE field: the fixture drives it exactly like the host's sync does.
-	page.setState(ADV, { hasImage: true });
-	const withPicture = page.renderRow(ADV);
-	assert.deepEqual(rangeInputs(withPicture).map((node) => firstText([node.parent.children[0]])),
+	assert.deepEqual(rangeInputs(withoutPicture).map((node) => firstText([node.parent.children[0]])),
 		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
-		'with a picture the framing group opens');
-});
+		'设计稿 44: 位置与缩放 belongs to the FORM, so the three rows are there before a picture is picked');
 
+	page.setState(ADV, { hasImage: true });
+	assert.deepEqual(rangeInputs(page.renderRow(ADV)).map((node) => node.props.value),
+		rangeInputs(withoutPicture).map((node) => node.props.value),
+		'and picking a picture changes no framing value: the group was already mounted');
+});
 test('url kind with nothing stored warns where the control set alone cannot: the empty-value line', () => {
 	// The mis-click guard deliberately writes nothing on an empty apply, so "url kind, no URL" is a state
-	// the user can reach by doing nothing at all. Today it is answered with one warning line and no
-	// framing controls; both halves are pinned because a later round may move the warning.
+	// the user can reach by doing nothing at all. It is answered with one warning line, and the
+	// framing rows stay mounted (设计稿 44): the control is not a reward for filling the box.
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: null });
 	const row = page.renderRow(ADV);
 	assert.ok(textOf(row).includes('bg2.urlEmpty'), 'the empty state has to say what is missing');
-	assert.deepEqual(rangeInputs(row), [], 'framing over nothing would be dead controls');
+	assert.deepEqual(rangeInputs(row).map((node) => firstText([node.parent.children[0]])),
+		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'], 'the three framing rows are mounted with the form, not with a picture');
 	assert.ok(findOne(row, (node) => node.tag === 'input' && node.props.type === 'url'), 'the box the user has to fill is still there');
 });
 
@@ -319,17 +319,6 @@ test('url kind with nothing stored warns where the control set alone cannot: the
 
 test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮播 — two forms, never one row', () => {
 	const page = buildSettingsPage({});
-	const rotation = (over) => Object.assign({
-		on: true,
-		mode: 'sequential',
-		minutes: 30,
-		urls: ['https://a.jpg', 'https://b.jpg'],
-		source: 'links',
-		folder: '',
-		folderCount: null,
-		folderError: null
-	}, over || {});
-
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: false });
 	assert.deepEqual(numberInputs(page.renderRow(ADV)), [], '固定图片 with the switch off → no interval box at all');
 
@@ -339,34 +328,34 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	assert.deepEqual([withRefresh[0].props.min, withRefresh[0].props.max, withRefresh[0].props.value], [1, 720, 12],
 		'the refresh box is hours, 1..720, and shows the persisted value');
 
-	// 图片轮播 is a form of its own (W11), so its pool is checked on a row whose selector
+	// 图片轮播 is a form of its own (W11), so its settings are checked on a row whose selector
 	// sits on that form — the pinned view cell is how a case reaches a branch the store
 	// cannot derive yet (an unarmed pool derives as 固定图片).
-	const pool = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#6': 'rotation' } });
-	pool.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 12, rotation: rotation() });
+	const pool = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#7': 'rotation' } });
+	pool.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 12, rotation: Object.assign({}, ROTATION, { on: true }) });
 	let row = pool.renderRow(ADV);
 	const numbers = numberInputs(row);
 	assert.equal(numbers.length, 1, '图片轮播 carries its own interval INSTEAD of the refresh one, so the row never counts two');
-	assert.deepEqual([numbers[0].props.min, numbers[0].props.max, numbers[0].props.value], [5, 10080, 30],
+	assert.deepEqual([numbers[0].props.min, numbers[0].props.max, numbers[0].props.value], [5, 10080, '30'],
 		'the rotation interval is minutes, 5..10080 (seven days)');
 	assert.ok(!textOf(row).includes('bg2.refresh'), 'and the scheduled-refresh switch is the OTHER form\'s');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
 			['bg2.rotationSequential', true], ['bg2.rotationRandom', false]],
-		'with two links the mode chips open too');
-	assert.ok(textOf(row).includes('bg2.rotationNow'), 'and the "switch now" action');
+		'both source chips and both order chips, one of each pressed');
 
-	// One link is not a rotation: the mode/interval block closes while the list box stays.
-	pool.setState(ADV, { rotation: rotation({ urls: ['https://a.jpg'] }) });
+	// 设计稿 57-61: 轮播设置 belongs to the FORM, so it stays put when the pool is one link long —
+	// the interval and the order are how the user decides to add the second one.
+	pool.setState(ADV, { rotation: Object.assign({}, ROTATION, { on: true, urls: ['https://a.jpg'] }) });
 	row = pool.renderRow(ADV);
-	assert.deepEqual(numberInputs(row).map((node) => node.props.value), [],
-		'below two links no interval box is left — and the refresh one never comes here');
-	assert.ok(textOf(row).includes('bg2.rotationList'), 'the list box itself stays: that is where the second link comes from');
-	assert.equal(chipByText(row, 'bg2.rotationSequential'), null, 'nor do the mode chips appear while the pool cannot rotate');
+	assert.deepEqual(numberInputs(row).map((node) => node.props.value), ['30'],
+		'one link: the interval box is still the form\'s, never replaced by the refresh box');
+	assert.ok(textOf(row).includes('bg2.rotationList'), 'and the list box itself stays: that is where the second link comes from');
+	assert.ok(chipByText(row, 'bg2.rotationSequential'), 'nor do the order chips disappear while the pool is short');
 
 	// The folder source swaps the link box for the PICKED path (W12: a dialog, never a typed
 	// box) and reports the host's count.
-	pool.setState(ADV, { rotation: rotation({ source: 'folder', folder: '~/Pictures/Walls', folderCount: 7 }) });
+	pool.setState(ADV, { rotation: Object.assign({}, ROTATION, { on: true, source: 'folder', folder: '~/Pictures/Walls', folderCount: 7 }) });
 	row = pool.renderRow(ADV);
 	assert.equal(findOne(row, (node) => node.tag === 'textarea'), null, 'folder source → no link list');
 	assert.equal(findOne(row, (node) => node.tag === 'input' && (node.props.type === 'text' || node.props.type === undefined)), null,
@@ -382,10 +371,9 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	assert.ok(textOf(row).includes('bg2.rotationFolderCount'), 'the count line comes from the store, not from a default');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', false], ['bg2.rotationSourceFolder', true],
-			['bg2.rotationByFolder', true], ['bg2.rotationRandom', false]],
-		'in a folder, sequential order is labelled "by folder"');
+			['bg2.rotationSequential', true], ['bg2.rotationRandom', false]],
+		'in a folder the two order chips are unchanged: 按文件夹 no longer exists as a third order');
 });
-
 // ---------------------------------------------------------------------------
 // 7. the state the panel reads comes from storage, through the slot store
 // ---------------------------------------------------------------------------
@@ -1304,43 +1292,32 @@ test('zones: exactly one rule between two zones — none above the first, none a
 		'the section ends on the last zone, whose rule can only ever be ABOVE it — there is no trailing line');
 });
 
-test('fold: the background zone has NO block fold — its body is open, and only the asides fold', () => {
+/** 设计稿 21-72: nothing in the background zone folds any more. 填充方式 and 位置与缩放 are
+ *  plain labelled groups in the row body — they used to sit behind a toggle. */
+const plainBlockProblems = (row) => {
+	const problems = [];
+	const toggles = foldTogglesOf(row);
+	if (toggles.length !== 0) problems.push('a fold is back: ' + toggles.map(titleText).join(' / '));
+	const ranges = rangeInputs(row).map((node) => firstText([node.parent.children[0]]));
+	if (JSON.stringify(ranges) !== JSON.stringify(['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'])) {
+		problems.push('the framing group is not three plain labelled rows: ' + JSON.stringify(ranges));
+	}
+	const labels = findAll(row, (node) => node.tag === 'span' && typeof firstText([node]) === 'string'
+		&& (firstText([node]) === 'bg2.fill' || firstText([node]) === 'bg2.frame')).map((node) => firstText([node]));
+	if (labels.join('|') !== 'bg2.fill|bg2.frame') problems.push('the two shared groups lost their labels: ' + JSON.stringify(labels));
+	return problems;
+};
+
+test('the background zone folds nothing: 填充方式 and 位置与缩放 are plain labelled groups', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	const row = page.renderRow(ADV);
-	assert.deepEqual(bodyTitleProblems(row), [],
-		'W8: the zone body prints no title line — 背景形式 opens it directly instead of a block heading');
-	// The controls the block used to hide behind a toggle are mounted, unconditionally: there is no
-	// collapse between the zone heading and its controls any more.
-	const linkBox = findOne(row, (node) => node.tag === 'input' && node.props.type === 'url');
-	assert.ok(linkBox, 'the link box is in the body itself, not behind a fold');
-	const bodies = foldTogglesOf(row).map(foldBody).filter((node) => node !== null);
-	const ancestors = [];
-	for (let node = linkBox.parent; node !== null; node = node.parent) ancestors.push(node);
-	assert.equal(ancestors.filter((node) => bodies.indexOf(node) !== -1).length, 0,
-		'and nothing above it is a fold body — there is no collapse between the zone heading and this box');
+	const fixed = page.renderRow(ADV);
+	assert.deepEqual(plainBlockProblems(fixed), [], '固定图片: the two groups are mounted with the form, nothing folds');
+	assert.deepEqual(bodyTitleProblems(fixed), [], 'and no block title line opens the body — 背景形式 does');
 
-	// The fold that DOES remain is the aside below it, and its toggle still announces its state.
-	const folds = foldTogglesOf(row);
-	assert.deepEqual(folds.map(titleText), ['bg2.frame'], 'one aside folds on a fixed picture: 位置与缩放');
-	const toggle = folds[0];
-	assert.equal(toggle.props['aria-expanded'], true, 'the aside starts open, and says so');
-	page.clearHookCalls();
-	toggle.props.onClick();
-	const hookKey = page.hookCalls[0] && page.hookCalls[0].hook;
-	assert.equal(typeof hookKey, 'string', 'clicking the toggle writes a hook cell: ' + JSON.stringify(page.hookCalls));
-	assert.equal(page.hookCalls.length, 1, 'one click, one state write');
-	assert.equal(page.hookCalls[0].value, false, 'the click asks for the closed state');
-
-	// Closed, the aside mounts nothing — and the body's own controls are untouched by that.
-	const closed = buildSettingsPage({ hookInitials: { [hookKey]: false } });
-	closed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	const folded = closed.renderRow(ADV);
-	assert.equal(foldBody(foldTogglesOf(folded)[0]), null, 'closed: the aside mounts nothing');
-	assert.ok(findOne(folded, (node) => node.tag === 'input' && node.props.type === 'url'),
-		'closed: the link box is STILL there — the aside is not what was hiding it');
+	page.setState(ADV, { rotation: Object.assign({}, ROTATION, { on: true }) });
+	assert.deepEqual(plainBlockProblems(page.renderRow(ADV)), [], '图片轮播: the same two groups, the same shape');
 });
-
 test('mutation: demoting one zone heading reddens the zone case', () => {
 	const anchor = 'ZoneHeading({ title: t("zone.packs") })';
 	assert.equal(countOf(CODE, anchor), 1, 'the import/export zone heading anchor must occur exactly once: ' + anchor);
@@ -1370,23 +1347,22 @@ test('mutation: drawing the rule on every block reddens the divider case', () =>
 	], 'mutation expected: every block drew one, so blocks and zones read alike again — the exact failure the marker was introduced to end');
 });
 
-test('mutation: an aside that stops announcing its state reddens the fold case', () => {
-	const anchor = '\n\t\t\t\t\t\t"aria-expanded": open,';
-	assert.equal(countOf(CODE, anchor), 1, 'the fold toggle aria anchor must occur exactly once');
-	const mutated = CODE.replace(anchor, '');
+test('mutation: a fill group that stops naming itself reddens the plain-group case', () => {
+	const anchor = 'children: t("bg2.fill")';
+	assert.equal(countOf(CODE, anchor), 1, 'the fill group label must occur exactly once: ' + JSON.stringify(anchor));
+	const mutated = CODE.replace(anchor, 'children: t("bg2.hint")');
 	assert.notEqual(mutated, CODE, 'mutation ⑬ has to change the bundle');
 
-	const page = buildSettingsPage({});
-	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(subFoldProblems(page.renderRow(ADV), ['bg2.frame']), [], 'control: the shipped aside announces its state');
+	const control = buildSettingsPage({});
+	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.deepEqual(plainBlockProblems(control.renderRow(ADV)), [], 'control: the shipped groups name themselves');
 
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.frame']),
-		['bg2.frame: the fold does not announce its state (aria-expanded is undefined)'],
-		'mutation expected: the aside still opens and closes, but a screen reader can no longer hear which');
+	assert.deepEqual(plainBlockProblems(broken.renderRow(ADV)),
+		['the two shared groups lost their labels: ["bg2.frame"]'],
+		'mutation expected: three chips with nothing saying what they choose');
 });
-
 // ---------------------------------------------------------------------------
 // 13. W6a: the background zone's FOUR forms, one entry each
 //
@@ -1562,13 +1538,13 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	assert.deepEqual(page.hookCalls.map((call) => call.value), [null, 'rotation', 'bg2.rotationNeedTwo'],
 		'the row clears the old reason, remembers the pick, then states the reason the action would have alerted');
 	assert.deepEqual(page.hookCalls.map((call) => call.hook),
-		['WallpaperAdvancedRow#5', 'WallpaperAdvancedRow#6', 'WallpaperAdvancedRow#5'],
+		['WallpaperAdvancedRow#6', 'WallpaperAdvancedRow#7', 'WallpaperAdvancedRow#6'],
 		'one cell for the reason and one for the pick: the view state never lands in the store');
 	assert.equal(page.stateOf(ADV).rotation.on, false, 'and nothing was armed: one link is not a rotation');
 
 	// The state drives the DOM: a page whose cell holds the reason RENDERS it, in the
 	// error colour the other in-place warnings use.
-	const refused = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo' } });
+	const refused = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#6': 'bg2.rotationNeedTwo' } });
 	refused.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
 	const row = refused.renderRow(ADV);
 	assert.ok(textOf(row).includes('bg2.rotationNeedTwo'), 'the row has to SAY why the slideshow did not start');
@@ -1580,7 +1556,7 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	// 固定图片, because the pool editor that fixes the refusal lives in the branch the
 	// user just picked. The pick is a view cell, so a pinned one proves the render.
 	const stuck = buildSettingsPage({
-		hookInitials: { 'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo', 'WallpaperAdvancedRow#6': 'rotation' }
+		hookInitials: { 'WallpaperAdvancedRow#6': 'bg2.rotationNeedTwo', 'WallpaperAdvancedRow#7': 'rotation' }
 	});
 	stuck.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
 	const stuckRow = stuck.renderRow(ADV);
@@ -1597,14 +1573,15 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	assert.equal(formSelect(page.renderRow(ADV)).props.value, 'rotation', 'and now the selector really does read 图片轮播');
 });
 
+test('w11: 保存列表 and the source chip both drop a stale refusal', () => {
 	// And the refusal itself is dropped the moment the pool can carry the rotation: the line
 	// named a condition that no longer holds. The box has no live input in this fixture, so the
 	// typed text is pinned in the row's own cell (#2) — the click reads that cell, not storage.
 	const armed = buildSettingsPage({
 		hookInitials: {
 			'WallpaperAdvancedRow#2': 'https://a.jpg\nhttps://b.jpg',
-			'WallpaperAdvancedRow#5': 'bg2.rotationNeedTwo',
-			'WallpaperAdvancedRow#6': 'rotation'
+			'WallpaperAdvancedRow#6': 'bg2.rotationNeedTwo',
+			'WallpaperAdvancedRow#7': 'rotation'
 		}
 	});
 	armed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { urls: [] }) });
@@ -1614,7 +1591,7 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	const armRow = armed.renderRow(ADV);
 	armed.clearHookCalls();
 	chipByText(armRow, 'bg2.rotationSave').props.onClick();
-	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#5', null]],
+	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#6', null]],
 		'保存列表 clears the refusal line in the same click that arms the rotation');
 	assert.deepEqual(armCalls, [['setRotation', true]], 'and arms it: the pool the user just saved is the one it named');
 
@@ -1624,9 +1601,11 @@ test('w6a: a REFUSED rotation arms nothing and leaves the reason on the row, not
 	armBag.setRotationSource = (...args) => { switchCalls.push(['setRotationSource'].concat(args)); };
 	const switchRow = armed.renderRow(ADV);
 	chipByText(switchRow, 'bg2.rotationSourceFolder').props.onClick();
-	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#5', null]],
+	assert.deepEqual(armed.hookCalls.map((call) => [call.hook, call.value]), [['WallpaperAdvancedRow#6', null]],
 		'the source chip drops the stale reason too');
 	assert.deepEqual(switchCalls, [['setRotationSource', 'folder']], 'and still switches the source');
+
+});
 
 test('w6a: the image source is ONE choice — link / local file under a fixed picture, the pool under a rotation', () => {
 	const page = buildSettingsPage({});
@@ -1762,31 +1741,32 @@ test('mutation: a derivation that forgets the rotation switch reddens the form t
 });
 
 test('mutation: putting the second clear entry back reddens the single-clear case', () => {
-	const anchor = '\t\t\t\t\t\t\t\tchildren: t("background.choose")\n\t\t\t\t\t\t\t}),';
-	assert.equal(countOf(CODE, anchor), 1, 'the image row\'s picker anchor must occur exactly once');
-	const mutated = CODE.replace(anchor, '\t\t\t\t\t\t\t\tchildren: t("background.choose")\n' +
-		'\t\t\t\t\t\t\t}), (0, react_jsx_runtime.jsx)("button", {\n' +
-		'\t\t\t\t\t\t\t\ttype: "button",\n' +
-		'\t\t\t\t\t\t\t\tstyle: { ...styles.button, ...styles.buttonDanger },\n' +
-		'\t\t\t\t\t\t\t\tonClick: () => setWallpaper(null),\n' +
-		'\t\t\t\t\t\t\t\tchildren: t("background.remove")\n' +
-		'\t\t\t\t\t\t\t}),');
+	// Anchored by the ONE clear button's own text and walked back to the element that owns it,
+	// so a re-indent cannot disarm this leg.
+	const key = 'children: t("bg2.remove")';
+	assert.equal(countOf(CODE, key), 1, 'the single clear entry must name itself exactly once: ' + JSON.stringify(key));
+	const keyAt = CODE.indexOf(key);
+	const tail = 'children: t("bg2.remove")\n\t\t\t\t\t})';
+	assert.equal(countOf(CODE, tail), 1, 'the button literal that carries it must close exactly once');
+	const start = CODE.lastIndexOf('(0, react_jsx_runtime.jsx)("button", {', keyAt);
+	assert.ok(start !== -1 && start < keyAt, 'the element around that text is a button');
+	const end = CODE.indexOf(tail) + tail.length;
+	const indent = CODE.slice(CODE.lastIndexOf('\n', start) + 1, start);
+	const element = CODE.slice(start, end);
+	const mutated = CODE.slice(0, end) + ',\n' + indent + element + CODE.slice(end);
 	assert.notEqual(mutated, CODE, 'mutation ⑯ has to change the bundle');
 
 	const control = buildSettingsPage({});
 	control.setState(ADV, { kind: 'image', hasImage: true, url: 'data:image/png;base64,QUJD' });
-	control.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
 	assert.deepEqual(clearProblems(control.renderSection()), [], 'control: one clear entry on the shipped panel');
 
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'image', hasImage: true, url: 'data:image/png;base64,QUJD' });
-	broken.setState('dream-skin-wallpaper', { url: 'data:image/png;base64,QUJD' });
 	const problems = clearProblems(broken.renderSection());
 	assert.equal(problems.length, 1, 'mutation expected: two clear entries again, got: ' + JSON.stringify(problems));
-	assert.match(problems[0], /^2 clear entries \(background\.remove, bg2\.remove\)/,
-		'and the defect names both entries — the duplicate this round removed');
+	assert.match(problems[0], /^2 clear entries \(bg2\.remove, bg2\.remove\)/,
+		'and the defect names both of them — the duplicate this round removed');
 });
-
 test('mutation: dropping the history filter reddens the recent-list case', () => {
 	const anchor = '\t\t\tconst historyForForm = readWallpaperHistory().filter((entry) => historyMatchesForm(entry, form, kind));';
 	assert.equal(countOf(CODE, anchor), 1, 'the filtered history read must occur exactly once');
@@ -1864,8 +1844,8 @@ const PICTURE_FORMS = [
 	['轮播图片', { rotation: Object.assign({}, ROTATION, { on: true }) }]
 ];
 
-/** S1's three chips, in the order the design lists them. */
-const FILL_KEYS = ['bg2.fillCover', 'bg2.fillContain', 'bg2.fillBlur'];
+/** S1's three chips, in the order 设计稿 40-43 lists them. */
+const FILL_KEYS = ['bg2.fillCover', 'bg2.fillBlur', 'bg2.fillContain'];
 
 /**
  * Everything wrong with the shared S1 / S2 blocks: present under BOTH picture forms, mirroring the
@@ -1901,61 +1881,69 @@ const sharedBlockProblems = (page) => {
 		chips[1].props.onClick();
 		sliders[0].props.onChange({ target: { value: '-35' } });
 		const got = JSON.stringify(calls.slice(before));
-		if (got !== JSON.stringify([['setFit', 'contain'], ['setFrameX', -35]])) {
+		if (got !== JSON.stringify([['setFit', 'blur'], ['setFrameX', -35]])) {
 			problems.push(formName + ': the shared blocks do not reach the row actions (' + got + ')');
 		}
 	}
 	return problems;
 };
 
-test('w6b: the framing sub-block is its own fold, open by default and mounted inside the row', () => {
+test('w6b: 位置与缩放 is a plain labelled group, mounted with both picture forms', () => {
 	const page = buildSettingsPage({});
+	const calls = [];
+	page.actionsOf(ADV).resetFrame = (...args) => { calls.push(args); };
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	const row = page.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(row, ['bg2.frame']), [],
-		'fixed picture: 位置与缩放 is the row\'s only fold now — W8 removed the block fold above it');
-	const frame = foldTogglesOf(row)[0];
-	const body = foldBody(frame);
-	assert.deepEqual(body === null ? [] : rangeInputs([body]).map((node) => firstText([node.parent.children[0]])),
-		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'],
-		'the three framing sliders are INSIDE the fold, so folding really hides them');
+	const fixed = page.renderRow(ADV);
+	assert.equal(findAll(fixed, (node) => node.tag === 'span' && firstText([node]) === 'bg2.frame').length, 1,
+		'固定图片: the group prints its own label once');
+	assert.deepEqual(rangeInputs(fixed).map((node) => firstText([node.parent.children[0]])),
+		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'], 'and the three rows follow it, in reading order');
 
-	// The click writes the fold's OWN cell — the row itself owns none, so a re-render cannot shift it.
-	page.clearHookCalls();
-	frame.props.onClick();
-	assert.deepEqual(page.hookCalls.map((call) => call.value), [false], 'the framing toggle asks for the closed state');
+	const reset = chipByText(fixed, 'bg2.frameReset');
+	assert.ok(reset, 'the group ends on 恢复默认');
+	reset.props.onClick();
+	assert.deepEqual(calls, [[]], 'a click lands on the row action the group was handed');
 
-	// The state drives the DOM: a page whose cell starts closed mounts nothing in either fold.
-	const closed = buildSettingsPage({ hookInitials: { 'Foldable#0': false } });
-	closed.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	const folded = closed.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(folded, ['bg2.frame'], false), [],
-		'closed: the sub-fold says so and mounts nothing');
-	assert.deepEqual(rangeInputs(folded), [], 'closed: the framing controls are unmounted, not merely clipped');
-	assert.ok(chipByText(folded, 'bg2.fillCover'), 'closed: the fill choice STAYS — 填充方式 is the row\'s, not the aside\'s');
+	page.setState(ADV, { rotation: Object.assign({}, ROTATION, { on: true }) });
+	const rotation = page.renderRow(ADV);
+	assert.equal(findAll(rotation, (node) => node.tag === 'span' && firstText([node]) === 'bg2.frame').length, 1,
+		'图片轮播 mounts exactly one 位置与缩放, not a second copy');
+	assert.deepEqual(rangeInputs(rotation).map((node) => firstText([node.parent.children[0]])),
+		['bg2.frameX', 'bg2.frameY', 'bg2.frameZoom'], 'with the same three rows');
 });
-
-test('w6b: 轮播设置 is its own fold, and the pool editor stays outside it', () => {
+test('w6b: 轮播设置 is a plain labelled group after the pool editor, and the interval came with a unit', () => {
 	const page = buildSettingsPage({});
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', refreshOn: true, refreshHours: 6, rotation: Object.assign({}, ROTATION, { on: true }) });
 	const row = page.renderRow(ADV);
-	assert.deepEqual(subFoldProblems(row, ['bg2.rotationSettings', 'bg2.frame']), [],
-		'图片轮播: 轮播设置 and 位置与缩放 are two folds, in reading order — the pool editor comes first');
-	const body = foldBody(foldTogglesOf(row)[0]);
-	const boxes = body === null ? [] : numberInputs([body]);
-	assert.equal(boxes.length, 1, 'the interval box is inside 轮播设置');
-	assert.deepEqual([boxes.length === 0 ? null : boxes[0].props.min, boxes.length === 0 ? null : boxes[0].props.max], [5, 10080],
-		'and it is still the minutes box (5..10080), so the row contract is intact');
-	assert.ok(findOne(body === null ? [] : [body], (node) => node.tag === 'button' && firstText([node]) === 'bg2.rotationRandom'),
-		'the order chips are inside the fold with it');
-	// The pool editor is NOT folded away: it is where the second link comes from.
-	assert.ok(findOne(row, (node) => node.tag === 'textarea'), 'the link list stays outside the fold');
-	// W11: the stored refresh switch is ON here, and the row still counts ONE number box —
-	// the refresh interval belongs to 固定图片, not to the form on screen.
-	assert.equal(numberInputs(row).length, 1, 'the refresh box is the OTHER form\'s, so it never joins this row');
-	assert.ok(!textOf(row).includes('bg2.refresh'), 'and its switch is not here either');
-});
 
+	// Document order, read off the tree itself: the pool editor first, its four settings after.
+	const seen = [];
+	const walk = (node) => {
+		if (node.tag === 'textarea') seen.push('pool');
+		if (node.tag === 'span' && firstText([node]) === 'bg2.rotationSettings') seen.push('settings');
+		for (const child of node.children || []) walk(child);
+	};
+	row.forEach(walk);
+	assert.deepEqual(seen, ['pool', 'settings'], '设计稿 49-61: the pool editor comes first, 轮播设置 after it');
+
+	const boxes = numberInputs(row);
+	assert.equal(boxes.length, 1, 'the interval box is the only number box of this form');
+	assert.deepEqual([boxes[0].props.min, boxes[0].props.max, boxes[0].props.value], [5, 10080, '30'],
+		'and it is the minutes box (5..10080), so the row contract is intact');
+
+	const unit = findOne(row, (node) => node.tag === 'select' && node.props['aria-label'] === 'bg2.unit');
+	assert.ok(unit, '设计稿 60: 切换间隔 carries its own unit, so the box is never silently always minutes');
+	assert.deepEqual(findAll([unit], (node) => node.tag === 'option').map((node) => firstText([node])),
+		['bg2.unitMinutes', 'bg2.unitHours', 'bg2.unitDays'], '分钟 / 小时 / 天, in that order');
+	assert.equal(unit.props.value, 'minutes', 'and it opens on the unit the store speaks');
+
+	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
+		[['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
+			['bg2.rotationSequential', true], ['bg2.rotationRandom', false]],
+		'the order chips live in the same group');
+	assert.ok(textOf(row).includes('bg2.rotationNow'), 'and 切换到下一张 closes it');
+	assert.ok(!textOf(row).includes('bg2.refresh'), 'the refresh switch stays with 固定图片');
+});
 test('w6b: S1 and S2 are ONE implementation under both picture forms, with the same actions', () => {
 	const page = buildSettingsPage({});
 	assert.deepEqual(sharedBlockProblems(page), [],
@@ -1979,51 +1967,63 @@ test('w6b: the sub-block titles are one dictionary key each, added in all eight 
 	}
 });
 
-test('mutation: dropping the shared aria-expanded reddens BOTH sub-block folds', () => {
-	const anchor = '\n\t\t\t\t\t\t"aria-expanded": open,';
-	assert.equal(countOf(CODE, anchor), 1, 'the fold toggle aria anchor must occur exactly once: ' + JSON.stringify(anchor));
-	const mutated = CODE.replace(anchor, '');
+test('mutation: an interval that ignores its unit reddens the unit case', () => {
+	const anchor = 'const minutes = Math.round(typed * unitFactor(intervalUnit));';
+	assert.equal(countOf(CODE, anchor), 1, 'the unit conversion must occur exactly once: ' + JSON.stringify(anchor));
+	const mutated = CODE.replace(anchor, 'const minutes = Math.round(typed);');
 	assert.notEqual(mutated, CODE, 'mutation ⑱ has to change the bundle');
 
-	const both = Object.assign({}, ROTATION, { on: true });
-	const control = buildSettingsPage({});
-	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: both });
-	assert.deepEqual(subFoldProblems(control.renderRow(ADV), ['bg2.rotationSettings', 'bg2.frame']), [],
-		'control: the shipped folds announce their state');
-
-	const broken = buildSettingsPage({ code: mutated });
-	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: both });
-	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.rotationSettings', 'bg2.frame']), [
-		'bg2.rotationSettings: the fold does not announce its state (aria-expanded is undefined)',
-		'bg2.frame: the fold does not announce its state (aria-expanded is undefined)'
-	], 'mutation expected: the SHARED toggle goes silent, so the failure names every sub-block that rides on it');
+	// Pinned: a typed draft (cell #3), the hours unit (cell #4) and the rotation form (cell #7).
+	const run = (code) => {
+		const page = buildSettingsPage({ code, hookInitials: {
+			'WallpaperAdvancedRow#3': '3',
+			'WallpaperAdvancedRow#4': 'hours',
+			'WallpaperAdvancedRow#7': 'rotation'
+		} });
+		page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true, minutes: 120 }) });
+		const calls = [];
+		page.actionsOf(ADV).setRotationMinutes = (...args) => { calls.push(args); };
+		const box = numberInputs(page.renderRow(ADV))[0];
+		assert.equal(typeof box, 'object', 'the interval box has to be there for the commit to be observable');
+		assert.equal(box.props.value, '3', 'the draft is what the box shows while it is being typed');
+		box.props.onBlur();
+		return calls;
+	};
+	assert.deepEqual(run(CODE), [[180]], 'control: 3 hours reaches storage as 180 minutes');
+	assert.deepEqual(run(mutated), [[5]], 'mutation expected: the typed 3 is taken as minutes and clamped up to the 5-minute floor');
 });
-
-test('mutation: framing that forgets the rotation form reddens the shared-block case', () => {
-	const anchor = 'const showFraming = form === "rotation" ? true : kind === "image" ? hasImage : kind === "url" ? Boolean(url) : false;';
-	assert.equal(countOf(CODE, anchor), 1, 'the showFraming gate must occur exactly once');
-	const mutated = CODE.replace(anchor, 'const showFraming = kind === "image" ? hasImage : Boolean(url) && !rotation.on;');
+test('mutation: a rotation form that loses its framing group reddens the shared-block case', () => {
+	const needle = 'FramingBlock({ t, x: frameX, y: frameY, zoom: frameZoom, setX: setFrameX, setY: setFrameY, setZoom: setFrameZoom, reset: resetFrame })';
+	assert.equal(countOf(CODE, needle), 2, 'both picture forms render the same 位置与缩放 call: ' + JSON.stringify(needle));
+	const first = CODE.indexOf(needle);
+	const second = CODE.indexOf(needle, first + needle.length);
+	assert.ok(second > first, 'the second call site is the rotation form');
+	const lineStart = CODE.lastIndexOf('\n', second) + 1;
+	const mutated = CODE.slice(0, lineStart) + CODE.slice(CODE.indexOf('\n', second) + 1);
 	assert.notEqual(mutated, CODE, 'mutation ⑲ has to change the bundle');
 
-	assert.deepEqual(sharedBlockProblems(buildSettingsPage({})), [], 'control: S2 is mounted under both picture forms');
+	assert.deepEqual(sharedBlockProblems(buildSettingsPage({})), [],
+		'control: 固定图片 and 图片轮播 both offer 填充方式 and 位置与缩放');
 	assert.deepEqual(sharedBlockProblems(buildSettingsPage({ code: mutated })), [
 		'轮播图片: S2 (位置与缩放) is not offered (sliders: [])'
-	], 'mutation expected: the frame group survives under a fixed picture and disappears from the rotation form');
+	], 'mutation expected: the group survives under 固定图片 and disappears from 图片轮播');
 });
-
-test('mutation: a fold that starts closed reddens the default-state case', () => {
-	const anchor = 'const foldState = (0, _react.useState)(true);';
-	assert.equal(countOf(CODE, anchor), 1, 'the fold default anchor must occur exactly once');
-	const mutated = CODE.replace(anchor, 'const foldState = (0, _react.useState)(false);');
+test('mutation: a framing group that stops naming itself reddens the plain-group case', () => {
+	const anchor = 'children: props.t("bg2.frame")';
+	assert.equal(countOf(CODE, anchor), 1, 'the framing group label must occur exactly once: ' + JSON.stringify(anchor));
+	const mutated = CODE.replace(anchor, 'children: props.t("bg2.frameX")');
 	assert.notEqual(mutated, CODE, 'mutation ⑳ has to change the bundle');
+
+	const control = buildSettingsPage({});
+	control.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.deepEqual(plainBlockProblems(control.renderRow(ADV)), [], 'control: both groups name themselves');
 
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.deepEqual(subFoldProblems(broken.renderRow(ADV), ['bg2.frame']), [
-		'bg2.frame: starts closed, but the fold has no persisted state'
-	], 'mutation expected: a reload comes back collapsed — the open state is a view affordance, never persisted');
+	assert.deepEqual(plainBlockProblems(broken.renderRow(ADV)),
+		['the two shared groups lost their labels: ["bg2.fill"]'],
+		'mutation expected: three framing rows under a label that belongs to one of them');
 });
-
 test('mutation: a shared slider wired to the wrong action reddens the shared-block case', () => {
 	const anchor = '(0, react_jsx_runtime.jsx)(Slider, { label: t("bg2.frameX"), value: x, min: WALLPAPER_POS_MIN, max: WALLPAPER_POS_MAX, step: 1, format: percent, onChange: setX })';
 	assert.equal(countOf(CODE, anchor), 1, 'the horizontal framing slider line must occur exactly once');
@@ -2032,8 +2032,8 @@ test('mutation: a shared slider wired to the wrong action reddens the shared-blo
 
 	const problems = sharedBlockProblems(buildSettingsPage({ code: mutated }));
 	assert.deepEqual(problems, [
-		'固定图片: the shared blocks do not reach the row actions ([["setFit","contain"],["setFrameY",-35]])',
-		'轮播图片: the shared blocks do not reach the row actions ([["setFit","contain"],["setFrameY",-35]])'
+		'固定图片: the shared blocks do not reach the row actions ([["setFit","blur"],["setFrameY",-35]])',
+		'轮播图片: the shared blocks do not reach the row actions ([["setFit","blur"],["setFrameY",-35]])'
 	], 'mutation expected: the horizontal slider drives the vertical offset — one action per control is what S2 shares');
 });
 
@@ -2055,7 +2055,7 @@ const accentHexBox = (row) => findOne(row, (node) => node.tag === 'input' && nod
 const SEPARATE_GATES = ['glass.separateSidebar', 'glass.separateComposer', 'glass.separateModal'];
 
 /** The four import/export entries, by the i18n key each prints. */
-const PACK_ENTRIES = ['packs.import', 'packs.surprise', 'packs.share', 'packs.export'];
+const PACK_ENTRIES = ['packs.import', 'packs.surprise', 'packs.export', 'packs.share'];
 
 /** The button that prints `key` under `nodes`, or null. */
 const buttonByKey = (nodes, key) => findOne(nodes, (node) => node.tag === 'button' && firstText([node]) === key);
@@ -2215,7 +2215,7 @@ test('w7a: each 「单独设置」 gate owns its slider — closing one unmounts
 		'a stored look-alike key cannot close a gate, because no gate is persisted');
 });
 
-test('w7a: the four import/export entries live in the zone above the library, and 随机换一个 is one click', () => {
+test('w7a: the four import/export entries live in the zone above the library, and 随机换一个 asks twice', () => {
 	const page = buildSettingsPage({});
 	page.setState('dream-skin-packs', { ids: ['pack-a'], names: { 'pack-a': 'Pack A' }, active: 'abyss' });
 	const calls = [];
@@ -2225,7 +2225,7 @@ test('w7a: the four import/export entries live in the zone above the library, an
 
 	const entries = findAll(row, (node) => node.tag === 'button' && PACK_ENTRIES.indexOf(firstText([node])) !== -1);
 	assert.deepEqual(entries.map((node) => firstText([node])), PACK_ENTRIES,
-		'import / random / copy share link / export, each rendered exactly once');
+		'导入主题包 / 随机换一个 / 导出主题包 / 复制分享链接, each rendered exactly once, in design order');
 	assert.equal(new Set(entries.map((node) => node.parent)).size, 1,
 		'they are ONE row of entries, not actions scattered through the library');
 
@@ -2241,15 +2241,30 @@ test('w7a: the four import/export entries live in the zone above the library, an
 	assert.equal(findAll(row, (node) => isTitleLine(node) && titleText(node) === 'packs.title').length, 0,
 		'the library block title is gone: the zone heading names the whole zone');
 
-	// 随机换一个 stays a SINGLE click: one press, one action call, no confirmation step.
+	// 设计稿 74: <twice_access_button> — the first press only arms, the second one rolls.
+	page.clearHookCalls();
 	buttonByKey(row, 'packs.surprise').props.onClick();
-	assert.deepEqual(calls, ['surprise'], 'one click rolls once — no second click to confirm');
-});
+	assert.deepEqual(calls, [], 'one press arms, it does not roll: a random switch is not undoable');
+	assert.deepEqual(page.hookCalls.map((call) => [call.hook, call.value]), [['PacksRow#2', true]],
+		'the press asks for the armed state, on the packs row\'s own cell');
 
+	const armedPage = buildSettingsPage({ hookInitials: { 'PacksRow#2': true } });
+	armedPage.setState('dream-skin-packs', { ids: ['pack-a'], names: { 'pack-a': 'Pack A' }, active: 'abyss' });
+	const armedCalls = [];
+	armedPage.actionsOf('dream-skin-packs').surprise = () => { armedCalls.push('surprise'); };
+	const armed = armedPage.renderRow('dream-skin-packs');
+	const confirm = buttonByKey(armed, 'packs.surpriseArmed');
+	assert.ok(confirm, 'armed: the button stops promising and names the commitment instead');
+	assert.equal(confirm.props.style.color, 'var(--dsw-alias-state-error-primary)',
+		'and it is dressed as the entry that cannot be undone');
+	assert.ok(buttonByKey(armed, 'packs.surpriseCancel'), 'a cancel entry sits beside it, so the armed state can be left');
+	confirm.props.onClick();
+	assert.deepEqual(armedCalls, ['surprise'], 'the second press rolls exactly once');
+});
 test('mutation: deleting 恢复主题色 reddens the accent case', () => {
-	const anchor = '(0, react_jsx_runtime.jsx)("button", {\n\t\t\t\t\t\t\t\ttype: "button",\n\t\t\t\t\t\t\t\tstyle: { ...styles.button, ...styles.buttonDanger },\n\t\t\t\t\t\t\t\tonClick: clearAccent,\n\t\t\t\t\t\t\t\tchildren: t("accent.clear")\n\t\t\t\t\t\t\t})';
-	assert.equal(countOf(CODE, anchor), 1, 'the accent reset button must occur exactly once: ' + JSON.stringify(anchor));
-	const mutated = CODE.replace(anchor, 'null');
+	const anchor = 'children: t("accent.clear")';
+	assert.equal(countOf(CODE, anchor), 1, 'the way back must print its own key exactly once: ' + JSON.stringify(anchor));
+	const mutated = CODE.replace(anchor, 'children: t("accent.hint")');
 	assert.notEqual(mutated, CODE, 'mutation ㉒ has to change the bundle');
 
 	assert.deepEqual(accentProblems(buildSettingsPage({}).renderRow('dream-skin-accent')), [], 'control: the way back is there');
@@ -2368,42 +2383,46 @@ test('w7b: the hook-owning helpers own their cells, not the row that renders the
 	page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
 	page.clearHookKeys();
 	page.renderRow(ADV);
-	const withFrame = page.hookKeys;
-	assert.equal(withFrame.filter((key) => key === 'Slider#0').length, 3,
+	const pictureForm = page.hookKeys;
+	assert.equal(pictureForm.filter((key) => key === 'Slider#0').length, 3,
 		'the three framing sliders each own the cell useCompactLayout reads');
-	assert.equal(withFrame.filter((key) => key === 'Foldable#0').length, 1,
-		'the framing fold owns its own open state (the block fold it used to sit under is gone)');
+	assert.equal(pictureForm.filter((key) => key.indexOf('Foldable#') === 0).length, 0,
+		'no Foldable cell is left in the row: 位置与缩放 and 轮播设置 are plain groups now');
+	const pictureCells = rowOwnedHookCells(page);
 
 	page.setState(ADV, { kind: 'gradient', url: null });
 	page.clearHookKeys();
 	page.renderRow(ADV);
-	const frameFree = page.hookKeys;
-	assert.equal(frameFree.filter((key) => key.indexOf('Slider#') === 0).length, 0,
-		'no picture, no framing sliders — and therefore no slider hook cells at all');
-	assert.equal(frameFree.filter((key) => key === 'Foldable#0').length, 0,
-		'no picture, no sub-fold — so the row renders no Foldable cell at all');
+	const gradientForm = page.hookKeys;
+	assert.equal(gradientForm.filter((key) => key.indexOf('Slider#') === 0).length, 0,
+		'no picture form, no framing sliders — and therefore no slider hook cells at all');
+	assert.deepEqual(rowOwnedHookCells(page), pictureCells,
+		'meanwhile the row\'s OWN cell list is byte-identical: only the components it mounts changed');
 });
-
 test('mutation: invoking a hook-owning helper inline reddens the hook-ownership cases', () => {
 	const anchor = '(0, react_jsx_runtime.jsx)(Slider, { label: t("bg2.frameX")';
 	assert.equal(countOf(CODE, anchor), 1, 'the horizontal framing slider element must occur exactly once');
 	const mutated = CODE.replace(anchor, 'Slider({ label: t("bg2.frameX")');
 	assert.notEqual(mutated, CODE, 'mutation ㉕ has to change the bundle');
 
+	const control = buildSettingsPage({});
+	assert.deepEqual(hookOwnershipProblems(control), [],
+		'control: every 背景形式 leaves the row with the same cells');
+
 	const problems = hookOwnershipProblems(buildSettingsPage({ code: mutated }));
-	assert.equal(problems.length, 3,
-		'mutation expected: exactly the three framing-free forms now disagree with the three framing forms\n' + problems.join('\n'));
-	for (const label of ['固定图片（本地图，还没选图）', '固定图片（图片链接，框里还是空的）', '渐变色']) {
-		assert.ok(problems.some((problem) => problem.indexOf(label + ':') === 0),
-			'mutation expected: ' + label + ' is named, got ' + problems.join(' | '));
-	}
-	// And the framing form really renders one MORE cell on the row itself, which is the crash.
+	assert.equal(problems.length, 1,
+		'mutation expected: exactly ONE form disagrees — the only one that mounts no picture group\n' + problems.join('\n'));
+	assert.ok(problems[0].indexOf('渐变色:') === 0,
+		'mutation expected: 渐变色 is the odd one out, got ' + problems.join(' | '));
+
+	// And a picture form really does render three MORE cells on the row itself, which is the crash.
 	const broken = buildSettingsPage({ code: mutated });
 	broken.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
-	assert.equal(rowOwnedHookCells(broken).length, rowOwnedHookCells(buildSettingsPage({})).length + 1,
-		'mutation expected: the inlined slider adds one cell to the row, so the list length tracks the fold');
+	const clean = buildSettingsPage({});
+	clean.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg' });
+	assert.equal(rowOwnedHookCells(broken).length, rowOwnedHookCells(clean).length + 1,
+		'mutation expected: the inlined horizontal slider adds its cell to the row, so the list length tracks what the form mounts');
 });
-
 // ---------------------------------------------------------------------------
 // W12: the folder picker — a dialog panel, because a typed path is not a control
 // ---------------------------------------------------------------------------
@@ -2655,7 +2674,16 @@ test('w13: the form selector and the single-action buttons size to their own tex
 	const accent = page.renderRow('dream-skin-accent');
 	const random = findOne(accent, (node) => node.tag === 'button' && node.props.children === 'accent.random');
 	assert.ok(random, '随机 renders');
-	assert.equal(random.props.style.alignSelf, 'flex-start', '随机 is a direct child of a column box too');
+	assert.equal(random.props.style.alignSelf, undefined,
+		'随机 shares the preset row now (设计稿 line 7), so it is not a column child and needs no alignment');
+		// 设计稿 line 60: the interval number and its unit are ONE field, so both size to themselves.
+	const rotationPage = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#7': 'rotation' } });
+	rotationPage.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true }) });
+	const rotationSelects = findAll(rotationPage.renderRow(ADV), (node) => node.tag === 'select');
+	assert.equal(rotationSelects.length, 2, 'the form selector and the interval unit');
+	for (const node of rotationSelects) {
+		assert.equal(node.props.style.flex, '0 0 auto', 'a selector sizes to its longest option — both of them');
+	}
 
 	// The line this case must NOT flatten: two material cards sharing the row is the design.
 	const glass = page.renderRow('dream-skin-glass');
