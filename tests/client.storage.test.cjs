@@ -717,7 +717,7 @@ test('the folder controls show for the folder source only, explain each failure 
 	const pathLine = find(seen, (n) => n.props && n.props.title === '/Users/me/Pictures');
 	assert.ok(pathLine, 'the saved folder is printed');
 	assert.equal(pathLine.props.children, '/Users/me/Pictures', 'and the row carries the whole path');
-	assert.equal(find(seen, (n) => n.props && n.props['aria-label'] === 'bg2.dirPick'), undefined, 'the picker panel stays closed until it is asked for');
+	assert.equal(find(seen, (n) => n.props && n.props.role === 'group'), undefined, 'no hand-built panel is mounted beside the button: the dialog belongs to the operating system (m06450)');
 	const pressed = find(seen, (n) => n.type === 'button' && n.props['aria-pressed'] === true && n.props.children && n.props.children[0] === 'bg2.rotationSourceFolder');
 	assert.ok(pressed, 'the stored source is the pressed one');
 	buttonWith(seen, 'bg2.folderAdd').props.onClick();

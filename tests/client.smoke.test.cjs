@@ -1286,7 +1286,10 @@ test('all locale dictionaries are complete and keep placeholders', () => {
 		{ prefix: 'skin.', ids: SHIPPED_SKINS.map((s) => s.id) },
 		{ prefix: 'material.', ids: ['frosted', 'liquid'] },
 		// FOLDER_ERROR_KEYS maps each host error code to one of these (the code picks the key at run time).
-		{ prefix: 'bg2.rotationFolder', ids: ['Unset', 'NotAbsolute', 'Missing', 'NotDirectory', 'Unreadable', 'HostDown'] }
+		{ prefix: 'bg2.rotationFolder', ids: ['Unset', 'NotAbsolute', 'Missing', 'NotDirectory', 'Unreadable', 'HostDown'] },
+		// m06450: openFolderPicker reports a host with no chooser by STORING this key — the row renders
+		// every hint through t(formHint) — so it is reached at run time and never as a literal t("…").
+		{ prefix: 'bg2.dir', ids: ['Unsupported'] }
 	];
 	const reachable = (key) => {
 		if (literalUses.has(key)) return true;
