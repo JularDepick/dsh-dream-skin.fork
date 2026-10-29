@@ -365,7 +365,8 @@ function collectConsts(source) {
  */
 const REGISTERED_SHEETS = [
 	{ id: 'material', marker: /\.uV2eYG_card|--dsh-dream-skin-glass-rim/ },
-	{ id: 'nav-icon', marker: /\[data-dsh-dream-skin-nav\]/ }
+	{ id: 'nav-icon', marker: /\[data-dsh-dream-skin-nav\]/ },
+	{ id: 'select', marker: /\[data-dream-skin-select\]/ }
 ];
 
 /**

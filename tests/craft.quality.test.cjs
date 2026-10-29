@@ -257,7 +257,7 @@ test('mutation: a third injected stylesheet reddens sheet-reconciliation', () =>
 	]);
 	const c = checkNamed(auditCraft(broken), 'sheet-reconciliation');
 	assert.equal(c.pass, false, 'reconciliation gate can fail');
-	assert.match(c.detail, /injects 3 stylesheet/);
+	assert.match(c.detail, /injects 4 stylesheet/);
 });
 
 // ── issue #80: the glass scheme must follow the SKIN, not the host ─────────

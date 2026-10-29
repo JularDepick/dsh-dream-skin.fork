@@ -2143,8 +2143,18 @@ test('liquid-glass material CSS is injected on leaf cards only (no fixed-modal a
 	const ctx = makeApplyContext(h);
 	assert.doesNotThrow(() => e.apply(ctx), 'apply injects liquid-glass CSS without throwing');
 
-	assert.ok(appended && appended.textContent, 'a material <style> node was appended');
-	const css = appended.textContent;
+	// m06923: apply() injects a SECOND sheet now (the settings <select> list styling),
+	// so "last appended" is no longer the material sheet — locate it by the id it owns.
+	const materialSheet = headChildren.find((el) => el && String(el.id || '') === 'dsh-dream-skin:material:liquid-glass');
+	assert.ok(materialSheet && materialSheet.textContent, 'a material <style> node was appended');
+	const css = materialSheet.textContent;
+	// The <select> list is centred from its own sheet (m06923 / user: options were
+	// left-aligned and every inline attempt was ignored — ::picker() is a pseudo-element).
+	const selectSheet = headChildren.find((el) => el && String(el.id || '') === 'dsh-dream-skin-select');
+	assert.ok(selectSheet && selectSheet.textContent, 'the select list sheet is injected with apply()');
+	assert.ok(selectSheet.textContent.includes('::picker(select)'), 'the picker pseudo-element is addressed from the sheet');
+	assert.ok(selectSheet.textContent.includes('option::checkmark'), 'the empty check column is dropped so the option text centres');
+	assert.ok(selectSheet.textContent.includes('justify-content: center'), 'the option box centres its label');
 	assert.ok(css.includes('backdrop-filter'), 'uses backdrop-filter');
 	// The inline-warning card keeps the material blur — it hosts no fixed
 	// popover, so backdrop-filter cannot trap anything there.
@@ -3011,14 +3021,16 @@ test('issue #55: the material sheet un-shadows --dsw-specific-sidebar-fill on th
 	// token and it is a plain, non-important class rule. The fix must re-inherit
 	// the token for that subtree in a way that outranks it, and must stay inert
 	// on plain DSH Web.
-	let appended = null;
+	// The select sheet is injected right after the material sheet, so append order no
+	// longer names the sheet under test: find it by its own rule set.
+	const appended = [];
 	const documentMock = {
 		body: { contains: () => false, getAttribute: () => null },
 		head: {
 			children: [],
 			contains() { return false; },
-			appendChild(el) { appended = el; },
-			append() { appended = el; }
+			appendChild(el) { appended.push(el); },
+			append() { appended.push(el); }
 		},
 		createElement() { return { style: {}, dataset: {}, textContent: '', remove() {} }; },
 		createTextNode: () => ({}),
@@ -3028,7 +3040,9 @@ test('issue #55: the material sheet un-shadows --dsw-specific-sidebar-fill on th
 	const h = buildSandbox({ document: documentMock });
 	const e = h.factory(makeRequire(makeRuntime().RT));
 	assert.doesNotThrow(() => e.apply(makeApplyContext(h)));
-	const css = appended.textContent;
+	const sheet = appended.find((el) => String(el.textContent || '').includes('--dsh-dream-skin-modal-fill'));
+	assert.ok(sheet, 'the material sheet was injected');
+	const css = sheet.textContent;
 
 	const rule = css.match(/\.dshDesktopSidebarSurface\s*\{[^}]*\}/);
 	assert.ok(rule, 'the shell sidebar surface is targeted by the material sheet');
@@ -3051,13 +3065,13 @@ test('issue #99: under a wash the desktop shell sidebar underlay stops eating th
 	// regression we caused. The reporter's own words are "窗口模式为增强模式下，侧边栏无法
 	// 调整不透明度" — the official sidebar inside does obey the slider, but what shows
 	// through it is the shell's layer-1, never the wallpaper.
-	let appended = null;
+	const appended = [];
 	const documentMock = {
 		body: { contains: () => false, getAttribute: () => null },
 		head: {
 			children: [],
 			contains() { return false; },
-			appendChild(el) { appended = el; }
+			appendChild(el) { appended.push(el); }
 		},
 		createElement() { return { style: {}, dataset: {}, textContent: '', remove() {} }; },
 		createTextNode: () => ({}),
@@ -3067,7 +3081,9 @@ test('issue #99: under a wash the desktop shell sidebar underlay stops eating th
 	const h = buildSandbox({ document: documentMock });
 	const e = h.factory(makeRequire(makeRuntime().RT));
 	assert.doesNotThrow(() => e.apply(makeApplyContext(h)));
-	const css = appended.textContent;
+	const sheet = appended.find((el) => String(el.textContent || '').includes('--dsh-dream-skin-modal-fill'));
+	assert.ok(sheet, 'the material sheet was injected');
+	const css = sheet.textContent;
 
 	const tokenRule = css.match(/\.dshDesktopSidebarSurface\s*\{[^}]*\}/);
 	assert.ok(tokenRule && /--dsw-specific-sidebar-fill:\s*inherit\s*!important/.test(tokenRule[0]),
