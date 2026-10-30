@@ -218,6 +218,13 @@ test('the glass group lists its three 「单独设置」 gates above the sliders
 		[[0, 100, 1], [0, 60, 1], [0, 100, 1], [0, 100, 1], [0, 100, 1]],
 		'the ranges are the shipped ones: opacity is shown as TRANSPARENCY (100 - stored), blur is 0..60px');
 
+
+	// m02720: the first slider dims the wallpaper itself — it moves the native background colour's
+	// alpha, so what the user changes is how much of the picture is VISIBLE. The panel says that
+	// (壁纸能见度), not the channel it happens to move (透明度).
+	const zhBody = CODE.slice(CODE.indexOf('const zh = {'), CODE.indexOf('};', CODE.indexOf('const zh = {')));
+	assert.ok(zhBody.includes('"background.opacity": "壁纸能见度"'), 'the zh label names what the user changes: 壁纸能见度');
+	assert.equal(CODE.includes('壁纸透明度'), false, 'and the old wording is gone from every dictionary');
 	// The displayed value is not the stored value: opacity channels are inverted for the user.
 	assert.equal(sliders[0].node.props.value, 100 - Math.round(state.opacity * 100), 'wallpaper opacity is shown inverted');
 	assert.equal(sliders[1].node.props.value, state.blur, 'blur is shown as-is');
