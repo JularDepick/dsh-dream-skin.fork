@@ -678,6 +678,11 @@ test('every rotation string the page and its alerts use is defined in the dictio
 	const used = [...new Set([...CODE.matchAll(/(?:\bt|localeT)\("(bg2\.rotation[A-Za-z]*)"/g)].map((m) => m[1]))];
 	assert.ok(used.length >= 10, 'the rotation strings the page and its alerts use were found: ' + used.join(', '));
 	for (const key of used) assert.ok(zh.includes(key), `${key} is defined`);
+	// m02439 (user): the page raises its OWN toast — AGENTS.md §12 forbids browser-native modals in a
+	// web front end, so no rotation path may reach for one any more (it lands on top of the host's own
+	// dialogs and ignores the active skin).
+	assert.equal(/window\.alert\s*\(/.test(CODE), false, 'the bundle opens no native alert');
+	assert.ok(/function announceNotice\(/.test(CODE), 'the toast helper is the one channel left');
 });
 
 // ── the rotation source switch and the folder controls ─────────────────────────────────────────

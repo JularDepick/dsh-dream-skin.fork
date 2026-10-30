@@ -7451,10 +7451,15 @@ function mkProbeImage(probes, mode) {
 	};
 }
 
+/**
+ * m02439: the log the bundle publishes its own toasts into. Kept mutable (never replaced) so the
+ * `r.alerts.length = 0` calls below still clear it when a case runs before any notice was raised.
+ */
+const EMPTY_NOTICES = [];
+
 /** Boot the plugin with a rotation config, a controllable preload and a capturable tick. */
 function bootRotation({ urls = [ROT_A, ROT_B, ROT_C], current = ROT_A, kind = 'url', rotation = {}, refresh = null, mode = 'ok', visibility, date, seed = {}, fetch: fetchOverride, setTimeout: timeoutOverride } = {}) {
 	const probes = [];
-	const alerts = [];
 	const listeners = {};
 	let tick = null;
 	const g = mkWallpaperDoc();
@@ -7476,8 +7481,7 @@ function bootRotation({ urls = [ROT_A, ROT_B, ROT_C], current = ROT_A, kind = 'u
 		...(timeoutOverride ? { setTimeout: timeoutOverride } : {}),
 		window: {
 			setInterval: (fn) => { tick = fn; return 11; },
-			clearInterval: () => { tick = null; },
-			alert: (m) => alerts.push(m)
+			clearInterval: () => { tick = null; }
 		}
 	});
 	const e = h.factory(makeRequire(makeRuntime().RT));
@@ -7485,7 +7489,11 @@ function bootRotation({ urls = [ROT_A, ROT_B, ROT_C], current = ROT_A, kind = 'u
 	e.apply(ctx);
 	const cfg = () => JSON.parse(h.localStorage.getItem(ROT_KEY));
 	return {
-		h, g, probes, alerts, listeners, ctx,
+		h, g, probes, listeners, ctx,
+		// m02439: the bundle raises its OWN toast (AGENTS.md §12 forbids window.alert), so the
+		// capture point is the log it publishes rather than a stubbed alert. The getter keeps every
+		// `r.alerts.length = 0` / `assert.deepEqual(r.alerts, [...])` below unchanged.
+		get alerts() { return h.window.__DSH_DREAM_SKIN_NOTICES__ || EMPTY_NOTICES; },
 		tick: () => tick && tick(),
 		hasTick: () => tick !== null,
 		adv: h.actionBags['dream-skin-wallpaper-advanced'],
@@ -7583,6 +7591,12 @@ test('rotation: every entry passes the gate on every path, and one bad entry nev
 	r.adv.setRotationList('javascript:alert(1)\n' + GOOD1 + '\n\n   \nftp://bad.example.com/x.jpg\n' + GOOD2 + '\n');
 	assert.deepEqual(r.cfg().urls, [GOOD1, GOOD2], 'the valid lines survive');
 	assert.deepEqual(r.alerts, ['bg2.rotationDropped'], 'the refusal is announced once');
+	// m02439 (user): the refusal reaches the user as the plugin's OWN card — the browser's native
+	// modal is what AGENTS.md §12 forbids, and it is what a user sees landing on top of the host.
+	const toast = r.g.doc.body.children.find((el) => el.attrs && 'data-dsh-dream-skin-notice' in el.attrs);
+	assert.ok(toast, 'the notice card is mounted on the page');
+	assert.equal(toast.getAttribute('role'), 'status', 'and it announces itself politely');
+	assert.equal(toast.textContent, 'bg2.rotationDropped', 'with the very wording the log holds');
 	// Nothing usable at all: refused whole, the saved list is untouched.
 	r.alerts.length = 0;
 	r.adv.setRotationList('javascript:alert(1)\ndata:image/png;base64,AAAAAAAAAAAA');
