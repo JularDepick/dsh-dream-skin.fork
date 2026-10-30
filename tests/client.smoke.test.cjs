@@ -7783,7 +7783,8 @@ test('rotation: the list box ignores an empty save, switches rotation off when t
 	assert.equal(r.cfg().mode, 'random', 'a known mode is stored');
 	r.adv.setRotationMode('shuffle-all');
 	assert.equal(r.cfg().mode, 'random', 'an unknown mode leaves the stored one alone');
-	for (const [input, want] of [[1, 5], [4.4, 5], [90, 90], [99999, 10080], ['abc', 60], [NaN, 60]]) {
+	// m01852: the floor is one minute (the box offers 1..60 分钟), junk still reads as the default.
+	for (const [input, want] of [[1, 1], [0.4, 1], [90, 90], [99999, 10080], ['abc', 60], [NaN, 60]]) {
 		r.adv.setRotationMinutes(input);
 		assert.equal(r.cfg().minutes, want, `minutes ${String(input)} -> ${want}`);
 	}

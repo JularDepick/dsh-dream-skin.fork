@@ -336,8 +336,8 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	let row = pool.renderRow(ADV);
 	const numbers = numberInputs(row);
 	assert.equal(numbers.length, 1, '图片轮播 carries its own interval INSTEAD of the refresh one, so the row never counts two');
-	assert.deepEqual([numbers[0].props.min, numbers[0].props.max, numbers[0].props.value], [5, 10080, '30'],
-		'the rotation interval is minutes, 5..10080 (seven days)');
+	assert.deepEqual([numbers[0].props.min, numbers[0].props.max, numbers[0].props.value], [1, 60, '30'],
+		'the rotation interval box is the 分钟 unit: 1..60, and 30 minutes reads as 30 (m01852)');
 	assert.ok(!textOf(row).includes('bg2.refresh'), 'and the scheduled-refresh switch is the OTHER form\'s');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
 		[['bg2.rotationSourceLinks', true], ['bg2.rotationSourceFolder', false],
@@ -1933,8 +1933,8 @@ test('w6b: 轮播设置 is a plain labelled group after the pool editor, and the
 
 	const boxes = numberInputs(row);
 	assert.equal(boxes.length, 1, 'the interval box is the only number box of this form');
-	assert.deepEqual([boxes[0].props.min, boxes[0].props.max, boxes[0].props.value], [5, 10080, '30'],
-		'and it is the minutes box (5..10080), so the row contract is intact');
+	assert.deepEqual([boxes[0].props.min, boxes[0].props.max, boxes[0].props.value], [1, 60, '30'],
+		'and it is the minutes box (1..60), so the row contract is intact');
 
 	assert.deepEqual(pressedChips(row).filter(([key]) => UNIT_KEYS.indexOf(key) !== -1),
 		[['bg2.unitMinutes', true], ['bg2.unitHours', false], ['bg2.unitDays', false]],
@@ -1995,7 +1995,55 @@ test('mutation: an interval that ignores its unit reddens the unit case', () => 
 		return calls;
 	};
 	assert.deepEqual(run(CODE), [[180]], 'control: 3 hours reaches storage as 180 minutes');
-	assert.deepEqual(run(mutated), [[5]], 'mutation expected: the typed 3 is taken as minutes and clamped up to the 5-minute floor');
+	assert.deepEqual(run(mutated), [[3]], 'mutation expected: the typed 3 is taken as minutes and lands as 3 minutes');
+});
+
+test('m01852: the interval box is bounded by ITS unit — 1..60 分钟 / 1..24 小时 / 1..7 天', () => {
+	const boxFor = (unit, minutes) => {
+		const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#3': unit } });
+		page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true, minutes }) });
+		const box = numberInputs(page.renderRow(ADV))[0];
+		return [box.props.min, box.props.max, box.props.value];
+	};
+	assert.deepEqual(boxFor('minutes', 45), [1, 60, '45'], '45 minutes is 45');
+	assert.deepEqual(boxFor('hours', 120), [1, 24, '2'], 'two hours is 2, not 120');
+	assert.deepEqual(boxFor('days', 4320), [1, 7, '3'], 'three days is 3');
+	assert.deepEqual(boxFor('minutes', 4320), [1, 60, '60'],
+		'a value the unit cannot name is CLAMPED into its range, never shown out of it');
+});
+test('m01852: a number outside its unit is closed into the unit range before it becomes minutes', () => {
+	const commit = (unit, draft) => {
+		const page = buildSettingsPage({ hookInitials: { 'WallpaperAdvancedRow#2': draft, 'WallpaperAdvancedRow#3': unit } });
+		page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true, minutes: 60 }) });
+		const calls = [];
+		page.actionsOf(ADV).setRotationMinutes = (...args) => { calls.push(args); };
+		numberInputs(page.renderRow(ADV))[0].props.onBlur();
+		return calls;
+	};
+	assert.deepEqual(commit('minutes', '90'), [[60]], '90 分钟 is past the 60 the minutes box offers');
+	assert.deepEqual(commit('hours', '30'), [[1440]], '30 小时 lands on the 24 the hours box offers (1440 minutes)');
+	assert.deepEqual(commit('days', '9'), [[10080]], '9 天 stops at the 7-day ceiling');
+	assert.deepEqual(commit('minutes', '1'), [[1]], 'one minute is the floor');
+});
+test('m01852: the row opens on the unit that can hold the stored interval', () => {
+	const chipsFor = (minutes) => {
+		const page = buildSettingsPage({});
+		page.setState(ADV, { kind: 'url', url: 'https://example.com/w.jpg', rotation: Object.assign({}, ROTATION, { on: true, minutes }) });
+		const row = page.renderRow(ADV);
+		return { chips: pressedChips(row).filter(([key]) => UNIT_KEYS.indexOf(key) !== -1), value: numberInputs(row)[0].props.value };
+	};
+	assert.deepEqual(chipsFor(45), {
+		chips: [['bg2.unitMinutes', true], ['bg2.unitHours', false], ['bg2.unitDays', false]],
+		value: '45'
+	}, '45 minutes still fits the minutes box');
+	assert.deepEqual(chipsFor(1440), {
+		chips: [['bg2.unitMinutes', false], ['bg2.unitHours', true], ['bg2.unitDays', false]],
+		value: '24'
+	}, 'a stored day reads as 24 小时 — the hours box still holds it');
+	assert.deepEqual(chipsFor(2880), {
+		chips: [['bg2.unitMinutes', false], ['bg2.unitHours', false], ['bg2.unitDays', true]],
+		value: '2'
+	}, 'two days would be 48 hours, which the hours box (max 24) cannot name');
 });
 test('mutation: a rotation form that loses its framing group reddens the shared-block case', () => {
 	const needle = 'FramingBlock({ t, x: frameX, y: frameY, zoom: frameZoom, setX: setFrameX, setY: setFrameY, setZoom: setFrameZoom, reset: resetFrame })';

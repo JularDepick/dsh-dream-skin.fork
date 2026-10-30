@@ -618,8 +618,10 @@ test('the two picture forms show their own controls, and each control calls its 
 	assert.equal(box.props.defaultValue, 'https://example.com/a.jpg\nhttps://example.com/b.jpg', 'it shows the saved list, one link per line');
 	const random = find(seen, (n) => n.props && n.props['aria-pressed'] === true && n.props.children && n.props.children[0] === 'bg2.rotationRandom');
 	assert.ok(random, 'the stored mode is the pressed one');
-	const interval = find(seen, (n) => n.type === 'input' && n.props.type === 'number' && n.props.min === 5);
-	assert.equal(interval.props.value, 30, 'the interval box shows the stored value');
+	// The box is bounded by the unit it is showing (m01852): 30 minutes opens on 分钟, 1..60.
+	const interval = find(seen, (n) => n.type === 'input' && n.props.type === 'number' && n.props.min === 1);
+	assert.deepEqual([interval.props.min, interval.props.max, interval.props.value], [1, 60, 30],
+		'the interval box shows the stored value, bounded by its unit');
 
 	// Each control reaches its own action. 保存列表 hands the box's draft to the action —
 	// this harness has no live input state, so the draft is still empty and nothing arms;
