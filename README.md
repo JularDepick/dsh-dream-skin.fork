@@ -335,7 +335,9 @@ dsh web   # 重启后恢复官方外观
 > **第三方目录（DSH-Store）现状**：`AI-Scarlett/DSH-Store#1411` 曾把本插件标为 catalog blocked。其中「`lib/client.js` 超过其审核面单文件上限」一条，已由对方 2026-10-15 的追评收回，原文与正文 sha256 存档在 [`docs/evidence/dsh-store-1411-followup-2026-10-15.md`](./docs/evidence/dsh-store-1411-followup-2026-10-15.md)；其追评留下的「扫描器证明不了 `require` 的有限调用集」由 10.16.0 处理（全文见 [docs/release-notes.md](https://github.com/RevolutionLA/dsh-dream-skin/blob/main/docs/release-notes.md)）。**本仓库不承诺收录状态会变绿**——是否放行取决于对方的审查流程。
 
 <details>
-<summary><b>📜 逐版本更新记录（10.30.0 → 9.9.0）</b></summary>
+<summary><b>📜 逐版本更新记录（10.30.1 → 9.9.0）</b></summary>
+
+**版本 10.30.1（2026-10-30）**：**修 #129 / #130 两条反馈。** #129 是标签误导：自动弱化的代码方向正确（滑杆是透明度，`Math.min(opacity, 0.45)` 把壁纸不透明度封顶在 45%），旧文案「聚焦任务时」与实际「始终生效」不符，8 种语言已改成「壁纸不透明度最高 45%」；不要改成 `Math.max`，那会让淡壁纸反而变浓。#130 给宿主新的插件管理页补上表面：官方 `@deepseek-ai/dsh-client-ui-plugin-manager@0.2.1-rc.5` 的 `data-plugin-group` / `-item-detail` / `-detail` / `-rows` 加入同一条弹窗玻璃规则（跟随「弹窗透明度」，不新增模糊声明），页面根在壁纸激活时透明。回归门 **643/643**（640→643：新文件 `tests/client.plugin_page.test.cjs` +3），质量审计 **229/229**（217 调色 + 12 工艺）。**边界**：#130 的视觉未在 0.2.1-rc.5 活页目视（本机 0.2.0-rc.1 没有该页），规则按官方包 DOM 编写，请报告者回填。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.30.1`。
 
 **版本 10.30.0（2026-10-30）**：**采纳外部贡献者 @ppy-web 的 PR #128 —— 8 个设置滑杆统一成同一套自绘 Range（透明原生 `input[type=range]` + 自绘轨道/填充/拇指）。** 保留 `type=range`、min/max/step、键盘方向键/Home/End、`aria-valuetext`、`prefers-reduced-motion` 与 focus-visible 轮廓；轨道点击按位置跳转，拇指拖拽不跳动，预览仍只由指针触发。我们补了 6 条组件级回归测试（`tests/client.slider.test.cjs`）。回归门 **640/640**（10.29.0 为 634，+6），质量审计 **229/229**（217 调色 + 12 工艺）。**边界**：测试是组件级不是浏览器级；`touch-action:none` 会让触屏在滑杆区域起手的纵向滚动被吞掉；没有 forced-colors 兜底；bundle 538,272 B，距 544 KiB 预算余量 18,784 B。发版用确切版本号：`dsh plugin --profile web add dsh-dream-skin@10.30.0`。
 
