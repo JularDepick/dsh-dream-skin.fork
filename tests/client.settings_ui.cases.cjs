@@ -1292,6 +1292,13 @@ test('zones: exactly one rule between two zones — none above the first, none a
 		'the rule is a ZONE marker: zone 2 (glass), zone 3 (background) and zone 4 (import/export) open on one');
 	assert.equal(groupOpeners(section)[groups.length - 1], 'zone.packs',
 		'the section ends on the last zone, whose rule can only ever be ABOVE it — there is no trailing line');
+	// m02439 (user): 背景与壁纸 and 背景形式 sat a full block apart (55px of air). The rhythm is the
+	// spacing pass's, and the block that holds a zone TITLE and nothing else hands its bottom padding
+	// back so the title closes onto the first control it introduces.
+	const blockPadding = /group: \{[\s\S]{0,160}?padding: "([^"]+)"/.exec(CODE);
+	assert.equal(blockPadding && blockPadding[1], '14px 0', 'the block padding is the tightened one');
+	assert.equal(countOf(CODE, 'style: { ...blockStyle(true), paddingBottom: "2px" }'), 1,
+		'exactly one block — the title-only zone opener — hands its bottom padding back');
 });
 
 /** 设计稿 21-72: nothing in the background zone folds any more. 填充方式 and 位置与缩放 are
