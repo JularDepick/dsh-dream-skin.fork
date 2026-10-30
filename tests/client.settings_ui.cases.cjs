@@ -1138,7 +1138,9 @@ test('responsive: the compact subscription is one per component and is released 
 });
 
 test('mutation: dropping the compact slider row reddens the compact case', () => {
-	const anchor = 'style: narrow ? { ...styles.sliderRow, ...narrowStyles.sliderRow } : styles.sliderRow,';
+	// m01584: the wide tier now picks between THREE row styles (plain, note-carrying grid, and the
+	// narrow override stays outside the ternary), so the anchor spells the whole branch out.
+	const anchor = 'style: narrow ? { ...styles.sliderRow, ...narrowStyles.sliderRow } : (note ? styles.sliderRowNote : styles.sliderRow),';
 	assert.equal(countOf(CODE, anchor), 1, 'the compact slider-row branch must occur exactly once: ' + anchor);
 	const mutated = CODE.replace(anchor, 'style: styles.sliderRow,');
 	assert.notEqual(mutated, CODE, 'mutation ⑨ has to change the bundle');

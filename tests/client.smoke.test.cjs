@@ -3531,19 +3531,23 @@ test('issue #100 (adjudication R2): a wash flip re-renders BOTH opacity rows, no
 });
 
 test('issue #100: the slider says so when the floor is holding it (marker wired, 8 languages)', () => {
-	// String-level ON PURPOSE, and labelled as such: the marker lives in a JSX `format`
-	// closure that this sandbox cannot render, so what can be pinned here is that the branch
-	// exists, that it reads the SAME two facts the floor reads (the wash state and the floor
-	// constant — not a copied number), that a plain form still exists for the unclamped range,
-	// and that every shipped dictionary carries the key it prints. The visual behaviour needs a
-	// real page and is recorded as unverified in docs/desktop-support.md.
+	// String-level ON PURPOSE, and labelled as such: the marker lives in a JSX prop that this
+	// sandbox cannot render, so what can be pinned here is that the branch exists, that it reads
+	// the SAME two facts the floor reads (the wash state and the floor constant — not a copied
+	// number), that the value cell still prints a plain percentage (m01584: the marker is a note
+	// under the track, not a suffix on the number — it used to be the suffix and squeezed the
+	// row), and that every shipped dictionary carries the key it prints. The visual behaviour
+	// needs a real page and is recorded as unverified in docs/desktop-support.md.
 	const src = fs.readFileSync(path.join(__dirname, '..', 'lib', 'client.js'), 'utf8');
-	const branch = src.match(/format:\s*\(v\)\s*=>\s*\(([\s\S]{0,300}?)\)\s*,\n\s*onChange:\s*\(v\)\s*=>\s*setModalOpacity/);
-	assert.ok(branch, 'the modal slider must still carry its own format branch');
-	assert.match(branch[1], /washActive/, 'the marker is gated on the wash state, like the floor itself');
-	assert.match(branch[1], /DIALOG_ALPHA_FLOOR/, 'and on the floor constant — not on a literal 0.92');
-	assert.match(branch[1], /modal\.floorMark/, 'and it prints the translated marker');
-	assert.match(branch[1], /`\$\{v\}%`/, 'a plain form still exists for the unclamped range (the marker is conditional, not a suffix)');
+	const at = src.indexOf('label: t("modal.title")');
+	assert.ok(at !== -1, 'the modal slider is still where it was');
+	const branch = [src.slice(at, at + 1200)];
+	assert.match(branch[0], /format:\s*\(v\)\s*=>\s*`\$\{v\}%`/, 'the value cell prints the bare percentage again');
+	assert.doesNotMatch(branch[0], /% · /, 'and no longer glues the marker onto it');
+	assert.match(branch[0], /note:\s*washActive/, 'the marker is a note gated on the wash state, like the floor itself');
+	assert.match(branch[0], /DIALOG_ALPHA_FLOOR/, 'and on the floor constant — not on a literal 0.92');
+	assert.match(branch[0], /modal\.floorMark/, 'and it prints the translated marker');
+	assert.match(branch[0], /: null/, 'with no note at all while nothing is holding the slider');
 	for (const lang of ['zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'ru']) {
 		const at = src.indexOf(`const ${lang} = {`);
 		assert.ok(at !== -1, `${lang} dictionary`);
