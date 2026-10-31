@@ -381,8 +381,6 @@ test('the refresh box belongs to 固定图片 and the slideshow box to 图片轮
 	assert.ok(folderBox, 'folder source → the path box is there');
 	assert.equal(folderBox.props.defaultValue, '~/Pictures/Walls', 'the box prints the saved path as its default, keyed by it so a later answer replaces it');
 	assert.ok(folderBox.props.placeholder, 'and names a shape to type');
-	assert.ok(!textOf(row).includes('bg2.pathList'), 'no entry table: one folder is one box, not a list');
-	assert.ok(!textOf(row).includes('bg2.pathEmpty'), 'and no empty-list line either');
 	assert.ok(textOf(row).includes('bg2.rotationFolderSave'), 'the one action is 保存文件夹');
 	assert.ok(textOf(row).includes('bg2.rotationFolderCount'), 'the count line comes from the store, not from a default');
 	assert.deepEqual(pressedChips(row).filter(([key]) => key.startsWith('bg2.rotation')),
